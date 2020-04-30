@@ -7,12 +7,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Assume true underlying fatitilty rate is equal $\mu$. (Botential for hierarcical model).
+Assume true underlying fatitilty rate is equal $\mu$. (Potential for hierarcical model).
 Only look at data age >=60.
 
 missreporting rate = $p \in (0,1)$
 
-probability observind d death on ship is poison 
+probability observing d death on ship is poison 
 
 $P(d) = \frac{e ^\mu \mu ^d}{d!}$
 
@@ -33,6 +33,12 @@ posterior:
 𝑃(𝜇|𝑁,𝐷, 𝑝)~𝐺𝑎𝑚𝑚𝑎(𝑑௣ + �
 
 some strange way of defining a and b.� + 1,2𝑛)
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+```
+
 
 ```{r}
 N_n = 20024
@@ -126,6 +132,7 @@ true_deathrate
 
 estimate total of 140587 cases
 
+
 #now assume equally many infected in each agesegment above 15 years
 ```{r}
 peaple_60_plus = 4436518
@@ -134,5 +141,37 @@ people_60_min = 10131501
 true_case_60 = N_n/(1-0.724)
 true_cases_tot = true_case_60 + true_case_60*people_60_min/peaple_60_plus
 true_cases_tot
+```
+
+# PAUL's comments
+
+Point estimate of true mortality
+
+```{r}
+mu_p(0.48)
+```
+
+Lower and upper bounds of true mortality
+```{r}
+mu_p(0.18)
+mu_p(0.79)
+```
+
+The figure of 150,123 true cases is for the date of February 26th. 
+This [source](https://www.who.int/docs/default-source/coronaviruse/situation-reports/20200226-sitrep-37-covid-19.pdf) says there was 78191 confirmed cases in China at that date. To get the true number of cases, you divide by the 1-misreporting rate. 
+```{r}
+78191/(1-0.48)
+```
+Not exactly 150 123 but close. 
+
+In the case of Japan there was 167 cases, and the article says 321 trues cases
+```{r}
+167/(1-0.48)
+```
+
+As for true mortality in China: the article says 1.19
+
+```{r}
+1023/(44672/(1-0.48))
 ```
 
