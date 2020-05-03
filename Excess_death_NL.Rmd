@@ -1,0 +1,203 @@
+---
+title: "Exces death test"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+library(tidyr)
+library(ggplot2)
+```
+
+```{r}
+data <- read.csv("/Users/aurorahofman/Documents/Utveksling/Baysiana/UPC-Final-Project-Bayesian-Analysis/March_death_NL.csv", sep = ";")
+```
+
+Need to look how to do this with bigger data
+```{r}
+'''
+datanew <- data %>%
+  #select(c("Year", "Perioden", "aantal")) %>%
+  group_by("Year")
+'''
+```
+
+```{r}
+average_death_per_year = (139223 + 147134+ 148997 + 150214 + 153363 + 151793)/6
+average_per_month = average_death_per_year/12
+```
+A priori with average monthly deaths 
+
+Assume death poison distributed with parameter lambda. 
+
+As apriori chose the conjugate gamma distribution with mean average_per_month and a large enough variance
+
+```{r}
+alpha <- 68
+beta <- 0.00549
+  
+mean <- alpha/beta
+
+std.var <- alpha/beta^2
+
+theta <- seq(0.0001, 20000)
+gamma_vec <- dgamma(theta, shape= alpha, scale = 1/beta)
+```
+```{r}
+ggplot(data = tibble(lambda = theta, y = gamma_vec), aes(lambda,y)) + geom_line()
+```
+```{r}
+r_gamma <- rgamma(n = 10000, shape= alpha, scale = 1/beta)
+mean(r_gamma)
+(var(r_gamma))^0.5
+```
+
+Look at distribution if its sensible
+
+```{r}
+N = 5 # 2015-2019
+```
+
+```{r}
+data_list <- list(
+  N = N, 
+  y = data$total, 
+  a = alpha,
+  b = beta
+  )
+
+```
+
+```{r}
+death_netherland <- stan("exp_death.stan", iter = 1000, chains = 4,
+  data = data_list, seed = 1)
+
+```
+```{r}
+## Convergence analysis
+print(death_netherland)
+
+### Samples vs. iteration plot
+traceplot(death_netherland)
+
+posterior <- as.data.frame(death_netherland)
+
+lambda <- posterior[, "lambda"]
+```
+
+```{r}
+## Point estimate:
+mean(lambda)
+median(lambda)
+
+
+# b) posterior predictive: y
+n_sim <- 10000
+post_predict <- rpois(n_sim, lambda)
+
+ggplot(tibble(post_predict)) +
+  geom_bar(aes(x = post_predict)) +
+  ggtitle("Posterior predictive of y")
+
+## credibility interval
+quantile(post_predict, c(0.025, 0.975))
+##point estimates
+
+mean(post_predict)
+median(post_predict)
+```
+
+compare this with actual deaths in march 2020
+
+```{r}
+death_march <- 3089 + 3094 + 3213 + 3600
+death_march
+```
+```{r}
+## credibility interval
+quantile(post_predict, c(0.025, 0.975))/4
+##point estimates
+
+mean(post_predict)/4
+median(post_predict)/4
+```
+
+```{r}
+average_per_week <- average_per_month/4
+alpha <- 14.938
+beta <- 0.0048
+```
+
+
+```{r}
+gamma_vec <- dgamma(theta, shape= alpha, scale = 1/beta)
+
+ggplot(data = tibble(lambda = theta, y = gamma_vec), aes(lambda,y)) + geom_line()
+```
+
+```{r}
+data_2 <- read.csv("Overledenen__geslacht_en_leeftijd__per_week_01052020_141422.csv", sep = ";")
+```
+
+```{r}
+N_2 = length(data_2$aantal)-4 # 2015-2019
+```
+
+```{r}
+data_list_2 <- list(
+  N = N_2, 
+  y = data_2$aantal[1:N_2], 
+  a = alpha,
+  b = beta
+  )
+
+```
+
+```{r}
+death_netherland <- stan("exp_death.stan", iter = 1000, chains = 4,
+  data = data_list_2, seed = 1)
+
+```
+```{r}
+## Convergence analysis
+print(death_netherland)
+
+### Samples vs. iteration plot
+traceplot(death_netherland)
+
+posterior <- as.data.frame(death_netherland)
+
+lambda <- posterior[, "lambda"]
+```
+
+```{r}
+## Point estimate:
+mean(lambda)
+median(lambda)
+
+
+# b) posterior predictive: y
+n_sim <- 10000
+post_predict <- rpois(n_sim, lambda)
+
+ggplot(tibble(post_predict)) +
+  geom_bar(aes(x = post_predict)) +
+  ggtitle("Posterior predictive of y")
+
+## credibility interval
+quantile(post_predict, c(0.025, 0.975))
+##point estimates
+
+mean(post_predict)
+median(post_predict)
+```
+
+```{r}
+week_9 <- 3089 
+week_10 <- 3094
+week_11 <- 3213 
+week_12 <- 3600
+```
+
