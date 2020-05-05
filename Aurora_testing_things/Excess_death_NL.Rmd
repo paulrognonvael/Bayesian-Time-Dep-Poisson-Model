@@ -12,7 +12,7 @@ library(ggplot2)
 ```
 
 ```{r}
-data <- read.csv("/Users/aurorahofman/Documents/Utveksling/Baysiana/UPC-Final-Project-Bayesian-Analysis/March_death_NL.csv", sep = ";")
+data <- read.csv("March_death_NL.csv", sep = ";")
 ```
 
 Need to look how to do this with bigger data
