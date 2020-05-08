@@ -1,0 +1,105 @@
+---
+title: "Spatial_test"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+data<- read.csv("Death_week_2_17_netherland.csv", sep = ";")
+data_2 <- read.csv("England_Wales_weekly.csv",sep = ";")
+
+```
+
+```{r}
+mean <- as.vector(as.matrix(data)[,6])
+data_2020<-as.vector(as.matrix(data)[,5])
+```
+
+```{r}
+mean_england <- as.vector(as.matrix(data_2)[,12])
+england_2020 <- as.vector(as.matrix(data_2)[,13])
+```
+
+```{r}
+N <- length(mean)
+data_list <- list(
+  N = N, 
+  E = mean,
+  O = data_2020
+  )
+```
+
+
+```{r}
+N_2 <- length(mean_england)
+data_list_2 <- list(
+  N = N_2, 
+  E = mean_england,
+  O = england_2020
+  )
+```
+
+
+```{r}
+death_netherland <- stan("test_spatial.stan", iter = 2000, chains = 4,
+  data = data_list, seed = 1)
+
+```
+
+```{r}
+death_england <- stan("test_spatial.stan", iter = 2000, chains = 4,
+  data = data_list_2, seed = 1)
+
+```
+
+```{r}
+print(death_netherland)
+
+fit_netherland<-summary(death_netherland)
+results_netherland <- as.data.frame(fit_netherland$summary)
+
+```
+```{r}
+CI_upper <- exp(results_netherland$`97.5%`)[1:16]
+CI_lower <- exp(results_netherland$`2.5%`)[1:16]
+theta <- exp(results_netherland$mean)[1:16]
+
+```
+
+```{r}
+week = seq(1:16)
+
+ggplot(data = tibble(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+  geom_line(aes(week, CI_upper), col = "blue", lty = 2)
+
+```
+
+
+
+```{r}
+print(death_england)
+
+fit_england<-summary(death_england)
+results_england <- as.data.frame(fit_england$summary)
+
+```
+
+```{r}
+CI_upper <- exp(results_england$`97.5%`)[1:16]
+CI_lower <- exp(results_england$`2.5%`)[1:16]
+theta <- exp(results_england$mean)[1:16]
+
+```
+
+```{r}
+week = seq(1:16)
+
+ggplot(data = tibble(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+  geom_line(aes(week, CI_upper), col = "blue", lty = 2)
+
+```

@@ -23,10 +23,10 @@ parameters{
 }
 
 model{
-  y1 ~ neg_binomial_2(p1*r1/(1-p1), r1);
-  y2 ~ neg_binomial_2(p2*r2/(1-p2), r2);
-  y3 ~ neg_binomial_2(p3*r3/(1-p3), r3);
-  y4 ~ neg_binomial_2(p4*r4/(1-p4), r4);
+  y1 ~ neg_binomial_2((1-p1)*r1/(p1), r1);
+  y2 ~ neg_binomial_2((1-p2)*r2/(p2), r2);
+  y3 ~ neg_binomial_2((1-p3)*r3/(p3), r3);
+  y4 ~ neg_binomial_2((1-p4)*r4/(p4), r4);
   
   p1 ~ beta(a,b);
   p2 ~ beta(a,b);
