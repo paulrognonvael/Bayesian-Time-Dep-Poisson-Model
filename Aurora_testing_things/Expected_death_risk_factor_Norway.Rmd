@@ -31,6 +31,10 @@ data_list_norway <- list(
   N = N_norway, 
   E = mean_norway,
   O = data_2020_norway
+  mu1 = 0;
+  mu2 = 0;
+  sigma1 = 100;
+  sigma2 = 10;
   )
 ```
 

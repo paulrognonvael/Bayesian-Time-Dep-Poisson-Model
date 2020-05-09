@@ -39,7 +39,11 @@ N_netherland <- length(mean)
 data_list_netherland <- list(
   N = N_netherland, 
   E = mean,
-  O = data_2020
+  O = data_2020,
+  mu1 = 0,
+  mu2 = 0,
+  sigma1 = 100,
+  sigma2 = 10
   )
 ```
 
@@ -49,7 +53,11 @@ N_england <- length(mean_england)
 data_list_england <- list(
   N = N_england, 
   E = mean_england,
-  O = england_2020
+  O = england_2020,
+  mu1 = 0,
+  mu2 = 0,
+  sigma1 = 100,
+  sigma2 = 10
   )
 ```
 

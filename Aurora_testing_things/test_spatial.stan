@@ -2,21 +2,24 @@ data{
   int <lower = 0> N;
   real E[N];
   int O[N];
+  real mu1;
+  real mu2;
+  real sigma1;
+  real sigma2;
 }
 
 parameters{
   real  logtheta[N];
-  real mu;
-  real sigma;
+  real mu[N];
+  real <lower  = 0> sigma[N];
 }
 
 model{
   for (i in 1:N){
     O[i] ~ poisson(E[i]* exp(logtheta[i]));
-    
-    logtheta[i]~ normal(mu,sigma);
+    logtheta[i]~ normal(mu[i],sigma[i]);
   }
   
-  mu ~ normal(0, 1);
-  sigma ~normal(0, 10);
+  mu ~ normal(mu1, sigma1);
+  sigma ~normal(mu2, sigma2);
 }
