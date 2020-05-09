@@ -7,6 +7,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+library(rstan)
+library(ggplot2)
+library(tidyr)
+```
+
 Reading the data
 ```{r}
 data<- read.csv("data/Death_week_2_17_netherland.csv", sep = ";")

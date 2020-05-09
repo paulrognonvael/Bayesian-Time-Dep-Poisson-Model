@@ -22,23 +22,25 @@ average_per_week = average_death_per_year/52
 average_per_week
 ```
 
+(from R dbinom)
+A negative binomial distribution can also arise as a mixture of Poisson distributions with mean distributed as a gamma distribution (see pgamma) with scale parameter (1 - prob)/prob and shape parameter size. (This definition allows non-integer values of size.)
+
 ```{r}
-alpha <- 8.1503
-beta <- 0.0028544
+alpha <- 8.1503 #shape
+beta <- 0.0028544 #1/scale
 
-p = beta/(1+beta)
+# =>
 
-
-gamma_vec <- dgamma(theta, shape= alpha, scale = 1/beta)
+p = beta/(1+beta) # as a mean
 ```
 
 
-a/(a+b) = 1/(1+0.00285) , a*b/((a+b)^2*(a+b+1)) = 0.05^2
+a/(a+b) = 0.00285/(1+0.00285) , a*b/((a+b)^2*(a+b+1)) = 0.05^2
 
 because r = alpha and p beta= p/(1-p)
 ```{r}
-a = 0.13315
-b = 0.000379478
+a = 0.0003794
+b = 0.13315
 
 mu = alpha
 sigma = 4
@@ -64,8 +66,8 @@ data_list <- list(
   y2 = period_2,
   y3 = period_3,
   y4 = period_4,
-  a = 0.0003794,
-  b = 0.13315,
+  a = a,
+  b = b,
   mu = mu, 
   sigma = sigma
   )
@@ -73,7 +75,7 @@ data_list <- list(
 ```
 
 ```{r}
-death_netherland <- stan("exp_death_week_2_17_neg_bin.stan", iter = 1000, chains = 4,
+death_netherland <- stan("exp_death_week_2_17_neg_bin.stan", iter = 2000, chains = 4,
   data = data_list, seed = 1)
 
 ```
@@ -107,10 +109,10 @@ posterior <- as.data.frame(death_netherland)
 
 ```{r}
 n_sim <- 1000
-post_predict1 <- rnbinom(n_sim, size = posterior[, "r1"], prob=(1-posterior[, "p1"]))
-post_predict2 <- rnbinom(n_sim, size = posterior[, "r2"], prob=(1-posterior[, "p2"]))
-post_predict3 <- rnbinom(n_sim, size = posterior[, "r3"], prob=(1-posterior[, "p3"]))
-post_predict4 <- rnbinom(n_sim, size = posterior[, "r4"], prob=(1-posterior[, "p4"]))
+post_predict1 <- rnbinom(n_sim, size = posterior[, "r1"], prob=(posterior[, "p1"]))
+post_predict2 <- rnbinom(n_sim, size = posterior[, "r2"], prob=(posterior[, "p2"]))
+post_predict3 <- rnbinom(n_sim, size = posterior[, "r3"], prob=(posterior[, "p3"]))
+post_predict4 <- rnbinom(n_sim, size = posterior[, "r4"], prob=(posterior[, "p4"]))
 ## credibility interval
 CI1<- quantile(post_predict1, c(0.05, 0.95))
 CI2<- quantile(post_predict2, c(0.05, 0.95))
