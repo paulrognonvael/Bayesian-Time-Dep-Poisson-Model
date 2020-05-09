@@ -7,26 +7,31 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+Reading the data
 ```{r}
-data<- read.csv("Death_week_2_17_netherland.csv", sep = ";")
-data_2 <- read.csv("England_Wales_weekly.csv",sep = ";")
+data<- read.csv("data/Death_week_2_17_netherland.csv", sep = ";")
+data_2 <- read.csv("data/England_Wales_weekly.csv",sep = ";")
 
 ```
 
+Extracting the data for the Netherland
 ```{r}
 mean <- as.vector(as.matrix(data)[,6])
 data_2020<-as.vector(as.matrix(data)[,5])
 ```
 
+Extracting data England and Wales
 ```{r}
 mean_england <- as.vector(as.matrix(data_2)[,12])
 england_2020 <- as.vector(as.matrix(data_2)[,13])
 ```
 
+
+Setting up the stan list
 ```{r}
-N <- length(mean)
-data_list <- list(
-  N = N, 
+N_netherland <- length(mean)
+data_list_netherland <- list(
+  N = N_netherland, 
   E = mean,
   O = data_2020
   )
@@ -34,27 +39,29 @@ data_list <- list(
 
 
 ```{r}
-N_2 <- length(mean_england)
-data_list_2 <- list(
-  N = N_2, 
+N_england <- length(mean_england)
+data_list_england <- list(
+  N = N_england, 
   E = mean_england,
   O = england_2020
   )
 ```
 
 
+Fit the stan models
 ```{r}
 death_netherland <- stan("test_spatial.stan", iter = 2000, chains = 4,
-  data = data_list, seed = 1)
+  data = data_list_netherland, seed = 1)
 
 ```
 
 ```{r}
 death_england <- stan("test_spatial.stan", iter = 2000, chains = 4,
-  data = data_list_2, seed = 1)
+  data = data_list_england, seed = 1)
 
 ```
 
+# Netherland
 ```{r}
 print(death_netherland)
 
@@ -62,6 +69,8 @@ fit_netherland<-summary(death_netherland)
 results_netherland <- as.data.frame(fit_netherland$summary)
 
 ```
+
+Backtransform the results form log to normal
 ```{r}
 CI_upper <- exp(results_netherland$`97.5%`)[1:16]
 CI_lower <- exp(results_netherland$`2.5%`)[1:16]
@@ -69,17 +78,19 @@ theta <- exp(results_netherland$mean)[1:16]
 
 ```
 
+Plot results
 ```{r}
 week = seq(1:16)
 
 ggplot(data = tibble(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
   geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
-  geom_line(aes(week, CI_upper), col = "blue", lty = 2)
+  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+  ggtitle("Riskfactor for the Netherlands")
 
 ```
+Is it a problem than 1 is outside the CI for week 1-8, this is before corona hit NL?
 
-
-
+#England and Wales
 ```{r}
 print(death_england)
 
@@ -100,6 +111,9 @@ week = seq(1:16)
 
 ggplot(data = tibble(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
   geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
-  geom_line(aes(week, CI_upper), col = "blue", lty = 2)
+  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+  ggtitle("Riskfactor in England and Wales")
 
 ```
+
+
