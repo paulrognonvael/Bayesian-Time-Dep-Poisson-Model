@@ -179,8 +179,8 @@ data_daily_2018_2020 <- data_daily_2018_2020 %>%
          #day_deaths_2019,
          `2020`)
 
-write_csv(data_daily_2018_2020,
-          "daily_deaths_france_week9_22_years2018_2020.csv")
+#write_csv(data_daily_2018_2020,
+#          "daily_deaths_france_week9_22_years2018_2020.csv")
 
 data_weekly_2018_2020 <- data_daily_2018_2020 %>%
   group_by(week) %>%
@@ -191,7 +191,7 @@ data_weekly_2018_2020 <- data_daily_2018_2020 %>%
 weekly_deces_2010_mar2020_2$`2020` <- c(weekly_deces_2010_mar2020_2$`2020`[1:9],
                                         data_weekly_2018_2020$`2020`)
 
-write_csv(data_weekly_2018_2020,
+write_csv(weekly_deces_2010_mar2020_2,
            "weekly_deaths_france_week1_16_years2010_2020.csv")
 
 
