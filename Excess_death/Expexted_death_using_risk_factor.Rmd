@@ -67,19 +67,6 @@ data_list_england <- list(
 ```
 
 ```{r}
-N_england <- length(mean_england)
-data_list_england <- list(
-  N = N_england, 
-  E = mean_england,
-  O = england_2020,
-  mu1 = 0,
-  mu2 = 0,
-  sigma1 = 100,
-  sigma2 = 10
-  )
-```
-
-```{r}
 N_italy <- length(mean_italy)
 data_list_italy <- list(
   N = N_italy, 
@@ -190,3 +177,50 @@ ggplot(data = data.frame(week, CI_upper, CI_lower, theta), aes(x = week, y = the
 
 ```
 
+##################
+
+
+#test negbin
+```{r}
+N_netherland <- length(mean)
+data_list_netherland <- list(
+  N = N_netherland, 
+  E = mean,
+  O = data_2020, 
+  a = 1,#15,
+  b= 6000#1/200
+  )
+```
+
+```{r}
+death_netherland <- stan("Neg_bin_simple.stan", iter = 2000, chains = 4,
+  data = data_list_netherland, seed = 1)
+
+```
+
+```{r}
+print(death_netherland)
+
+fit_netherland<-summary(death_netherland)
+results_netherland <- as.data.frame(fit_netherland$summary)
+
+```
+
+Backtransform the results form log to normal
+```{r}
+CI_upper <- exp(results_netherland$`97.5%`)[1:16]
+CI_lower <- exp(results_netherland$`2.5%`)[1:16]
+theta <- exp(results_netherland$mean)[1:16]
+
+```
+
+Plot results
+```{r}
+week = seq(1:16)
+
+ggplot(data = data.frame(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+  ggtitle("Riskfactor for the Netherlands")
+
+```
