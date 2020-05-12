@@ -15,7 +15,7 @@ library(tidyr)
 
 Reading the data
 ```{r}
-data<- read.csv("data/Norway_total_death.csv", sep = ";")
+data<- read.csv("/Users/aurorahofman/Documents/Utveksling/Baysiana/UPC-Final-Project-Bayesian-Analysis/Aurora_testing_things/data/Norway_total_death.csv", sep = ";")
 ```
 
 Extracting the data for Norway
@@ -31,9 +31,9 @@ data_list_norway <- list(
   N = N_norway, 
   E = mean_norway,
   O = data_2020_norway,
-  mu1 = 0,
+  mu = 0,
   mu2 = 0,
-  sigma1 = 100,
+  #sigma1 = 100,
   sigma2 = 10
   )
 ```
@@ -41,7 +41,7 @@ data_list_norway <- list(
 
 Fit the stan models
 ```{r}
-death_norway <- stan("test_spatial.stan", iter = 4000, chains = 4,
+death_norway <- stan("/Users/aurorahofman/Documents/Utveksling/Baysiana/test.stan", iter = 4000, chains = 4,
   data = data_list_norway, seed = 1)
 
 ```

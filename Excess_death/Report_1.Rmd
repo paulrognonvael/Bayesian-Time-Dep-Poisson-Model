@@ -1,0 +1,307 @@
+---
+title: "Excess death in relation to Covid-19"
+date: '`r format(Sys.Date(),"%e de %B, %Y")`'
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+  pdf_document:
+    number_sections: yes
+    toc: yes
+params:
+  stanfile: "test_spatial.stan"
+  iter: 2000
+  
+---
+
+```{r, include=FALSE}
+library(rstan)
+library(ggplot2)
+library(tidyr)
+```
+
+
+# Aim
+
+This project aims to estimate a risk factor connected to excess death and analyse the correlation between this excess and reported cases of Covid-19. 
+
+
+
+#######################################################################################################################################
+# Data
+
+The data used is weekly data of the total number of deaths in the following countries:
+
+- Norway
+- Netherland
+- Belgium
+- Germany
+- Switserland
+- Italy
+- Spain
+- France
+
+The data is obtained for week 2- 17 for 2020-2018 (# is this correct?) for all the countries and some additional years for some of the countries. 
+The data is retrieved from national statistic centers for the recpectiv countries, see the bibliografy. 
+
+To be able to preform analytics all data were transformed to the same structure visualized bellow. (# the are not 100% equal but though they still have the same structure). 
+
+Later on the weekly number of corrona registered deaths will also be used. 
+
+```{r}
+head(read.csv("data/Death_week_2_17_netherland.csv", sep = ";"))
+```
+
+
+
+
+#######################################################################################################################################
+# Model
+
+The distribution used will be  (# this might have to change)
+
+$$(1)\hspace{0.3cm}O_i \sim Poisson(E_i\theta_i).$$
+
+where $O_i$ are the observed number of deaths in week $i$, $E_i$ would be the known expected number of deaths for the same week and $\theta_i$ is the riskfactor connected to week $i$. $E_i$ will be the historical average of death for week $i$. This parameter is considered to be stable for the last ten years so it is estimated as an average of the number of years we have data for for the respective countries. 
+
+Hence the model will estimate the risk factor $\theta_{i,2020}$. If 1 is outside of the credibal intervals the risk will be considerd significant and we can assume there is a precanse of exsess death. 
+
+The $log(\theta_i)$ are assumed to follow a normal distribution with parameters 
+
+$log(\theta_i) \sim Normal(\mu_i,\sigma_i)$ (#this might also change slightly)
+
+with $\mu_i$ and $\sigma_i$ again are normaly distributed with shared hyperparameters. 
+
+#######################################################################################################################################
+#Analysis
+
+Reading the data
+```{r}
+data_netherland<- read.csv("data/Death_week_2_17_netherland.csv", sep = ";")
+data_england_wales <- read.csv("data/England_Wales_weekly.csv",sep = ";")
+data_italy <- read.csv("data/italy_week_deaths.csv", sep = ",")
+data_norway<- read.csv("data/Norway_total_death.csv", sep = ";")
+```
+
+
+Extracting the data for the Netherland
+```{r}
+mean_netherland <- as.vector(as.matrix(data_netherland)[,6])
+netherland_2020<-as.vector(as.matrix(data_netherland)[,5])
+```
+
+Extracting data England and Wales
+```{r}
+mean_england <- as.vector(as.matrix(data_england_wales)[,12])
+england_2020 <- as.vector(as.matrix(data_england_wales)[,13])
+```
+
+Extracting data Italy
+```{r}
+mean_italy <- as.vector(as.matrix(data_italy)[,9])
+italy_2020 <- as.vector(as.matrix(data_italy)[,8])
+```
+
+Extracting the data for Norway
+```{r}
+mean_norway <- as.vector(as.matrix(data_norway)[,8])
+norway_2020<-as.vector(as.matrix(data_norway)[,7])
+```
+
+###Setting up the stan lists
+
+```{r}
+N_netherland <- length(mean_netherland)
+data_list_netherland <- list(
+  N = N_netherland, 
+  E = mean_netherland,
+  O = netherland_2020,
+  mu1 = 0,
+  mu2 = 0,
+  sigma1 = 100,
+  sigma2 = 10
+  )
+```
+
+
+```{r}
+N_england <- length(mean_england)
+data_list_england_wales <- list(
+  N = N_england, 
+  E = mean_england,
+  O = england_2020,
+  mu1 = 0,
+  mu2 = 0,
+  sigma1 = 100,
+  sigma2 = 10
+  )
+```
+
+
+```{r}
+N_italy <- length(mean_italy)
+data_list_italy <- list(
+  N = N_italy, 
+  E = mean_italy,
+  O = italy_2020,
+  mu1 = 0,
+  mu2 = 0,
+  sigma1 = 100,
+  sigma2 = 10
+  )
+```
+```{r}
+N_norway <- length(mean_norway)
+data_list_norway <- list(
+  N = N_norway, 
+  E = mean_norway,
+  O = norway_2020,
+  mu1 = 0,
+  mu2 = 0,
+  sigma1 = 100,
+  sigma2 = 10
+  )
+```
+
+
+Fit the stan models
+```{r, results="hide", warning = FALSE}
+
+risk_netherland <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_netherland, seed = 1)
+
+risk_england_wales <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_england_wales, seed = 1)
+
+risk_italy <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_italy, seed = 1)
+
+risk_norway <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_norway, seed = 1)
+
+
+```
+
+
+# Results
+
+### Netherland
+```{r, include=FALSE}
+#print(risk_netherland)
+
+fit_netherland<-summary(risk_netherland)
+results_netherland <- as.data.frame(fit_netherland$summary)
+
+```
+
+Backtransform the results form log to normal
+```{r, include=FALSE}
+CI_upper <- exp(results_netherland$`97.5%`)[1:16]
+CI_lower <- exp(results_netherland$`2.5%`)[1:16]
+theta <- exp(results_netherland$mean)[1:16]
+
+```
+
+```{r}
+week = seq(1:16)
+
+ggplot(data = data.frame(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+  ggtitle("Riskfactor for the Netherlands")
+
+```
+
+### England and Wales
+```{r, include=FALSE}
+#print(risk_england_wales)
+
+fit_england<-summary(risk_england_wales)
+results_england <- as.data.frame(fit_england$summary)
+
+```
+
+```{r, include=FALSE}
+CI_upper <- exp(results_england$`97.5%`)[1:16]
+CI_lower <- exp(results_england$`2.5%`)[1:16]
+theta <- exp(results_england$mean)[1:16]
+
+```
+
+```{r}
+week = seq(1:16)
+
+ggplot(data = tibble(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+  ggtitle("Riskfactor in England and Wales")
+
+```
+
+
+# Italy 
+```{r, include=FALSE}
+#print(risk_italy)
+
+fit_italy<-summary(risk_italy)
+results_italy <- as.data.frame(fit_italy$summary)
+
+```
+
+```{r, include=FALSE}
+CI_upper <- exp(results_italy$`97.5%`)[1:14]
+CI_lower <- exp(results_italy$`2.5%`)[1:14]
+theta <- exp(results_italy$mean)[1:14]
+
+```
+
+```{r}
+week = seq(1:14)
+
+ggplot(data = data.frame(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+  ggtitle("Riskfactor in Italy")
+
+```
+
+# Norway
+```{r, include=FALSE}
+#print(death_norway)
+fit_norway<-summary(risk_norway)
+results_norway <- as.data.frame(fit_norway$summary)
+```
+
+Backtransform the results form the logscale
+```{r, include=FALSE}
+CI_upper <- exp(results_norway$`97.5%`)[1:16]
+CI_lower <- exp(results_norway$`2.5%`)[1:16]
+theta <- exp(results_norway$mean)[1:16]
+
+```
+
+```{r}
+week = seq(1:16)
+
+ggplot(data = tibble(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+  ggtitle("Riskfactor for Norway")
+
+```
+
+
+#######################################################################################################################################
+
+# Possible extentions
+
+To extend the model one could explore an hierarchical model adding the different countries to the same model, add explanatory variables for the risk $\theta_i$ (% of elderly people, % smokers, % obecity, % time of lockdown). 
+
+$log(\theta_i) \sim Normal(\beta_i + \beta_1 X_1 + \beta_2 X_2,\sigma_i^2)$
+
+One could also explore the timedependesy for example by implementing an auto regressive model.
+
+Also we would like to explore the possibility of doing the same model with E_i changing to the historical average plus the number of registered covid-19 deaths. Then the risk factor theta could share some light on how much unexplaind death occures in the different countries. 
+
+
+
