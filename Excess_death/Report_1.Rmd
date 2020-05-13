@@ -9,7 +9,7 @@ output:
     number_sections: yes
     toc: yes
 params:
-  stanfile: "test_spatial.stan"
+  stanfile: "neg_bin_time_dep.stan"
   iter: 2000
   
 ---
@@ -113,61 +113,42 @@ norway_2020<-as.vector(as.matrix(data_norway)[,7])
 ###Setting up the stan lists
 
 ```{r}
-N_netherland <- length(mean_netherland)
-data_list_netherland <- list(
-  N = N_netherland, 
-  E = mean_netherland,
-  O = netherland_2020,
-  mu1 = 0,
-  mu2 = 0,
-  sigma1 = 100,
-  sigma2 = 10
+create_list <- function(N, E, O){
+  data_list <-  list(
+  N = N, 
+  E = E,
+  O = O,
+  phi_a = 1,
+  phi_b = 6000,
+  sigma_a = 0.01,
+  sigma_b = 4,
+  alpha_mu = 800, 
+  alpha_sigma = 25,
+  beta_a = -1, 
+  beta_b = 1,
+  sigma_time_mu = 0,
+  sigma_time_sigma= 25
   )
+  return(data_list)
+}
 ```
-
+  phi~ uniform(a,b);
+  sigma ~ uniform(0.01,4);
+  
+  alpha ~ normal(800,25);
+  beta ~ uniform(-1,1);
+  sigma_time ~ normal(0,25);
 
 ```{r}
-N_england <- length(mean_england)
-data_list_england_wales <- list(
-  N = N_england, 
-  E = mean_england,
-  O = england_2020,
-  mu1 = 0,
-  mu2 = 0,
-  sigma1 = 100,
-  sigma2 = 10
-  )
-```
-
-
-```{r}
-N_italy <- length(mean_italy)
-data_list_italy <- list(
-  N = N_italy, 
-  E = mean_italy,
-  O = italy_2020,
-  mu1 = 0,
-  mu2 = 0,
-  sigma1 = 100,
-  sigma2 = 10
-  )
-```
-```{r}
-N_norway <- length(mean_norway)
-data_list_norway <- list(
-  N = N_norway, 
-  E = mean_norway,
-  O = norway_2020,
-  mu1 = 0,
-  mu2 = 0,
-  sigma1 = 100,
-  sigma2 = 10
-  )
+data_list_netherland <- create_list(length(mean_netherland), mean_netherland, netherland_2020)
+data_list_england_wales <- create_list( length(mean_england),mean_england,england_2020 )
+data_list_italy <- create_list(length(mean_italy), mean_italy, italy_2020)
+data_list_norway <- create_list(length(mean_norway), mean_norway, norway_2020)
 ```
 
 
 Fit the stan models
-```{r, results="hide", warning = FALSE}
+```{r, results="hide"}
 
 risk_netherland <- stan(params$stanfile, iter = params$iter, chains = 4,
   data = data_list_netherland, seed = 1)
@@ -181,36 +162,55 @@ risk_italy <- stan(params$stanfile, iter = params$iter, chains = 4,
 risk_norway <- stan(params$stanfile, iter = params$iter, chains = 4,
   data = data_list_norway, seed = 1)
 
-
 ```
 
 
 # Results
 
-### Netherland
-```{r, include=FALSE}
-#print(risk_netherland)
-
-fit_netherland<-summary(risk_netherland)
-results_netherland <- as.data.frame(fit_netherland$summary)
-
+```{r}
+plot_risk <- function(data, country_name){
+  g<- ggplot(data = data, aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+  geom_hline(yintercept = 1, col = "red")+
+  ggtitle("Riskfactor for" , country_name)
+  
+  return(g)
+}
 ```
 
-Backtransform the results form log to normal
-```{r, include=FALSE}
-CI_upper <- exp(results_netherland$`97.5%`)[1:16]
-CI_lower <- exp(results_netherland$`2.5%`)[1:16]
-theta <- exp(results_netherland$mean)[1:16]
 
+```{r}
+create_CI_theta_vec <- function(risk_data, N){
+  fit<-summary(risk_netherland)
+  results <- as.data.frame(fit$summary)
+  
+  CI_upper <- exp(results$`97.5%`[1:N] +results$`97.5%`[(N+1):(2*N)])
+  CI_lower <- exp(results$`2.5%`[1:N] +results$`2.5%`[(N+1):(2*N)])
+
+  theta <- exp(results$mean[1:N] +results$mean[(N+1):(2*N)])
+  week <- seq(1:N)
+  data <- data.frame(week, CI_upper, CI_lower, theta)
+  return(data)
+
+}
+```
+
+
+
+### Netherland
+```{r, include=FALSE}
+ 
+print(risk_netherland)
 ```
 
 ```{r}
-week = seq(1:16)
+data <- create_CI_theta_vec(risk_netherland, length(mean_netherland))
+```
 
-ggplot(data = data.frame(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
-  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
-  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
-  ggtitle("Riskfactor for the Netherlands")
+```{r}
+
+plot_risk(data, "Netherland")
 
 ```
 

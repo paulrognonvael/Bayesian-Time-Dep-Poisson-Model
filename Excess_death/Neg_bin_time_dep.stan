@@ -2,8 +2,17 @@ data{
   int <lower = 0> N;
   real E[N];
   int O[N];
-  real a;
-  real b;
+  real phi_a;
+  real phi_b;
+  real sigma_a;
+  real sigma_b;
+  real alpha_mu;
+  real alpha_sigma;
+  real beta_a;
+  real beta_b;
+  real sigma_time_mu;
+  real sigma_time_sigma;
+  
 }
 
 parameters{
@@ -26,11 +35,11 @@ model{
     theta[i]~ normal(0,sigma);
     theta_time[i] ~ normal(alpha+beta*theta_time[i-1], sigma_time);
   }
-  phi~ uniform(a,b);
-  sigma ~ uniform(0.01,4);
+  phi~ uniform(phi_a,phi_b);
+  sigma ~ uniform(sigma_a,sigma_b);
   
-  alpha ~ normal(800,25);
-  beta ~ uniform(-1,1);
-  sigma_time ~ normal(0,25);
+  alpha ~ normal(alpha_mu,alpha_sigma);
+  beta ~ uniform(beta_a,beta_b);
+  sigma_time ~ normal(sigma_time_mu,sigma_time_sigma);
 }
 
