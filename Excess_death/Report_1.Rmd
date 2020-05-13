@@ -10,7 +10,9 @@ output:
     toc: yes
 params:
   stanfile: "neg_bin_time_dep.stan"
-  iter: 2000
+  iter: 5000
+  adapt_delta: 0.99
+  max_treedepth: 15
   
 ---
 
@@ -24,8 +26,6 @@ library(tidyr)
 # Aim
 
 This project aims to estimate a risk factor connected to excess death and analyse the correlation between this excess and reported cases of Covid-19. 
-
-
 
 #######################################################################################################################################
 # Data
@@ -41,10 +41,13 @@ The data used is weekly data of the total number of deaths in the following coun
 - Spain
 - France
 
-The data is obtained for week 2- 17 for 2020-2018 (# is this correct?) for all the countries and some additional years for some of the countries. 
+The data is obtained for week 2- 17 for 2020-2018 
+<!-- (# is this correct?)  -->
+for all the countries and some additional years for some of the countries. 
 The data is retrieved from national statistic centers for the recpectiv countries, see the bibliografy. 
 
-To be able to preform analytics all data were transformed to the same structure visualized bellow. (# the are not 100% equal but though they still have the same structure). 
+To be able to preform analytics all data were transformed to the same structure visualized bellow. 
+<!-- (# the are not 100% equal but though they still have the same structure).  -->
 
 Later on the weekly number of corrona registered deaths will also be used. 
 
@@ -54,13 +57,17 @@ head(read.csv("data/Death_week_2_17_netherland.csv", sep = ";"))
 
 # Process 
 
-(thought that we could discribe shourtly the different models we have been working on)
+<!-- (thought that we could discribe shourtly the different models we have been working on) -->
 
 
 #######################################################################################################################################
-# Model
+# Model 
 
-The distribution used will be  (# this might have to change)
+<!-- ####### This is wrong, needs to be changed to neg bin with  -->
+
+The distribution used will be  
+
+<!-- this has to change -->
 
 $$(1)\hspace{0.3cm}O_i \sim Poisson(E_i\theta_i).$$
 
@@ -70,7 +77,7 @@ Hence the model will estimate the risk factor $\theta_{i,2020}$. If 1 is outside
 
 The $log(\theta_i)$ are assumed to follow a normal distribution with parameters 
 
-$log(\theta_i) \sim Normal(\mu_i,\sigma_i)$ (#this might also change slightly)
+$log(\theta_i)\sim Normal(\mu_i,\sigma_i)$ (#this might also change slightly)
 
 with $\mu_i$ and $\sigma_i$ again are normaly distributed with shared hyperparameters. 
 
@@ -122,8 +129,8 @@ create_list <- function(N, E, O){
   phi_b = 6000,
   sigma_a = 0.01,
   sigma_b = 4,
-  alpha_mu = 800, 
-  alpha_sigma = 25,
+  alpha_mu = 0,
+  alpha_sigma = 4,
   beta_a = -1, 
   beta_b = 1,
   sigma_time_mu = 0,
@@ -132,12 +139,7 @@ create_list <- function(N, E, O){
   return(data_list)
 }
 ```
-  phi~ uniform(a,b);
-  sigma ~ uniform(0.01,4);
-  
-  alpha ~ normal(800,25);
-  beta ~ uniform(-1,1);
-  sigma_time ~ normal(0,25);
+
 
 ```{r}
 data_list_netherland <- create_list(length(mean_netherland), mean_netherland, netherland_2020)
@@ -148,25 +150,41 @@ data_list_norway <- create_list(length(mean_norway), mean_norway, norway_2020)
 
 
 Fit the stan models
+
+<!-- The controlparameters and the number of itterations can be set in the params section on top -->
 ```{r, results="hide"}
 
 risk_netherland <- stan(params$stanfile, iter = params$iter, chains = 4,
-  data = data_list_netherland, seed = 1)
+  data = data_list_netherland, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
 
 risk_england_wales <- stan(params$stanfile, iter = params$iter, chains = 4,
-  data = data_list_england_wales, seed = 1)
+  data = data_list_england_wales, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
 
 risk_italy <- stan(params$stanfile, iter = params$iter, chains = 4,
-  data = data_list_italy, seed = 1)
+  data = data_list_italy, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
 
 risk_norway <- stan(params$stanfile, iter = params$iter, chains = 4,
-  data = data_list_norway, seed = 1)
+  data = data_list_norway, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
 
 ```
 
+There is a problem with divergency in our model meaning means and medians could be unreliable.
 
-# Results
+To explore this a bit more the pairs() function suggested by R are used.
 
+<!-- Appearantly these red dots are a problem but I do not know how to fix it..  -->
+```{r}
+pairs(risk_netherland, pars = c("phi", "sigma", "alpha", "beta", "sigma_time"))
+```
+
+
+
+
+
+
+# Funtions
+
+Funciton for outputgraphs
 ```{r}
 plot_risk <- function(data, country_name){
   g<- ggplot(data = data, aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
@@ -180,9 +198,10 @@ plot_risk <- function(data, country_name){
 ```
 
 
+Function for creating the dataframe with thetas and the bounds for the credible interval. 
 ```{r}
 create_CI_theta_vec <- function(risk_data, N){
-  fit<-summary(risk_netherland)
+  fit<-summary(risk_data)
   results <- as.data.frame(fit$summary)
   
   CI_upper <- exp(results$`97.5%`[1:N] +results$`97.5%`[(N+1):(2*N)])
@@ -198,99 +217,53 @@ create_CI_theta_vec <- function(risk_data, N){
 
 
 
-### Netherland
-```{r, include=FALSE}
- 
+#Results
+
+## Netherland
+
+<!-- not sure if we need this in the report -->
+```{r}
 print(risk_netherland)
 ```
 
+<!-- can this be used for validation?  -->
 ```{r}
-data <- create_CI_theta_vec(risk_netherland, length(mean_netherland))
+library(bayesplot)
+posterior <- as.data.frame(risk_netherland)
+mcmc_trace(risk_netherland, pars = "log_theta[12]")
 ```
 
-```{r}
-
-plot_risk(data, "Netherland")
-
-```
-
-### England and Wales
-```{r, include=FALSE}
-#print(risk_england_wales)
-
-fit_england<-summary(risk_england_wales)
-results_england <- as.data.frame(fit_england$summary)
-
-```
-
-```{r, include=FALSE}
-CI_upper <- exp(results_england$`97.5%`)[1:16]
-CI_lower <- exp(results_england$`2.5%`)[1:16]
-theta <- exp(results_england$mean)[1:16]
-
-```
 
 ```{r}
-week = seq(1:16)
+data_netherland <- create_CI_theta_vec(risk_netherland, length(mean_netherland))
+plot_risk(data_netherland, "Netherland")
+```
 
-ggplot(data = tibble(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
-  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
-  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
-  ggtitle("Riskfactor in England and Wales")
-
+## England and Wales
+```{r}
+data_england_wales <- create_CI_theta_vec(risk_england_wales, length(mean_england))
+plot_risk(data_england_wales, "England and Wales")
 ```
 
 
-# Italy 
-```{r, include=FALSE}
-#print(risk_italy)
 
-fit_italy<-summary(risk_italy)
-results_italy <- as.data.frame(fit_italy$summary)
-
-```
-
-```{r, include=FALSE}
-CI_upper <- exp(results_italy$`97.5%`)[1:14]
-CI_lower <- exp(results_italy$`2.5%`)[1:14]
-theta <- exp(results_italy$mean)[1:14]
-
-```
+## Italy 
 
 ```{r}
-week = seq(1:14)
-
-ggplot(data = data.frame(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
-  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
-  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
-  ggtitle("Riskfactor in Italy")
-
+data_italy <- create_CI_theta_vec(risk_italy, length(mean_italy))
+plot_risk(data_italy, "Italy")
 ```
 
-# Norway
-```{r, include=FALSE}
-#print(death_norway)
-fit_norway<-summary(risk_norway)
-results_norway <- as.data.frame(fit_norway$summary)
-```
 
-Backtransform the results form the logscale
-```{r, include=FALSE}
-CI_upper <- exp(results_norway$`97.5%`)[1:16]
-CI_lower <- exp(results_norway$`2.5%`)[1:16]
-theta <- exp(results_norway$mean)[1:16]
-
-```
+## Norway
 
 ```{r}
-week = seq(1:16)
-
-ggplot(data = tibble(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
-  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
-  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
-  ggtitle("Riskfactor for Norway")
-
+data_norway <- create_CI_theta_vec(risk_norway, length(mean_norway))
+plot_risk(data_norway, "Norway")
 ```
+
+notice: negative risk in week 17!! Consistent with dat a:)  (norway goes from 2-17 in weeks)
+
 
 
 #######################################################################################################################################
@@ -300,8 +273,6 @@ ggplot(data = tibble(week, CI_upper, CI_lower, theta), aes(x = week, y = theta))
 To extend the model one could explore an hierarchical model adding the different countries to the same model, add explanatory variables for the risk $\theta_i$ (% of elderly people, % smokers, % obecity, % time of lockdown). 
 
 $log(\theta_i) \sim Normal(\beta_i + \beta_1 X_1 + \beta_2 X_2,\sigma_i^2)$
-
-One could also explore the timedependesy for example by implementing an auto regressive model.
 
 Also we would like to explore the possibility of doing the same model with E_i changing to the historical average plus the number of registered covid-19 deaths. Then the risk factor theta could share some light on how much unexplaind death occures in the different countries. 
 
