@@ -224,3 +224,97 @@ ggplot(data = data.frame(week, CI_upper, CI_lower, theta), aes(x = week, y = the
   ggtitle("Riskfactor for the Netherlands")
 
 ```
+
+```{r}
+N_england <- length(mean_england)
+data_list_england <- list(
+  N = N_england, 
+  E = mean_england,
+  O = england_2020,
+  a = 1,#15,
+  b= 6000#1/200
+  )
+```
+
+```{r}
+death_england <- stan("Neg_bin_simple.stan", iter = 2000, chains = 4,
+  data = data_list_england, seed = 1)
+
+```
+
+```{r}
+print(death_england)
+
+fit_england<-summary(death_england)
+results_england <- as.data.frame(fit_england$summary)
+
+```
+
+```{r}
+CI_upper <- exp(results_england$`97.5%`[1:16] +results_england$`97.5%`[18:33])
+CI_lower <- exp(results_england$`2.5%`[1:16] +results_england$`2.5%`[18:33])
+
+theta <- exp(results_england$mean[1:16] +results_england$mean[18:33])
+
+```
+
+Plot results
+```{r}
+week = seq(1:16)
+
+ggplot(data = data.frame(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+  geom_hline(yintercept = 1, col = "red")
+  ggtitle("Riskfactor for the Netherlands")
+
+```
+
+```{r}
+N_italy <- length(mean_italy)
+data_list_italy <- list(
+  N = N_italy, 
+  E = mean_italy,
+  O = italy_2020,
+  a = 1,#15,
+  b= 6000#1/200
+  )
+```
+
+```{r}
+death_italy <- stan("Neg_bin_simple.stan", iter = 2000, chains = 4,
+  data = data_list_italy, seed = 1)
+
+```
+
+```{r}
+print(death_italy)
+
+fit_italy<-summary(death_italy)
+results_italy <- as.data.frame(fit_italy$summary)
+
+```
+
+```{r}
+CI_upper <- exp(results_italy$`97.5%`[1:13] +results_italy$`97.5%`[15:27])
+CI_lower <- exp(results_italy$`2.5%`[1:13] +results_italy$`2.5%`[15:27])
+
+theta <- exp(results_italy$mean[1:13] +results_italy$mean[15:27])
+
+#CI_upper <- exp(results_italy$`97.5%`)[1:14]
+#CI_lower <- exp(results_italy$`2.5%`)[1:14]
+#theta <- exp(results_italy$mean)[1:14]
+
+```
+
+Plot results
+```{r}
+week = seq(1:13)
+
+ggplot(data = data.frame(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+  geom_hline(yintercept = 1, col = "red")
+  ggtitle("Riskfactor for italy")
+
+```

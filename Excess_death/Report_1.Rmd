@@ -52,7 +52,9 @@ Later on the weekly number of corrona registered deaths will also be used.
 head(read.csv("data/Death_week_2_17_netherland.csv", sep = ";"))
 ```
 
+# Process 
 
+(thought that we could discribe shourtly the different models we have been working on)
 
 
 #######################################################################################################################################

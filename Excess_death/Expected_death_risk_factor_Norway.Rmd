@@ -24,6 +24,52 @@ mean_norway <- as.vector(as.matrix(data)[,8])
 data_2020_norway<-as.vector(as.matrix(data)[,7])
 ```
 
+#test negbin
+```{r}
+N_norway <- length(mean_norway)
+data_list_norway <- list(
+  N = N_norway, 
+  E = mean_norway,
+  O = data_2020_norway
+  )
+```
+
+```{r}
+death_norway <- stan("Neg_bin_simple.stan", iter = 4000, chains = 4,
+  data = data_list_norway, seed = 1)
+
+```
+
+# Norway negbin
+```{r}
+print(death_norway)
+
+fit_norway<-summary(death_norway)
+results_norway <- as.data.frame(fit_norway$summary)
+
+```
+
+Backtransform the results form log to normal
+```{r}
+CI_upper <- exp(results_norway$`97.5%`)[1:16]
+CI_lower <- exp(results_norway$`2.5%`)[1:16]
+theta <- exp(results_norway$mean)[1:16]
+
+```
+
+Plot results
+```{r}
+week = seq(1:16)
+
+ggplot(data = tibble(week, CI_upper, CI_lower, theta), aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+  ggtitle("Riskfactor for the Norway")
+
+```
+
+
+
 Setting up the stan list
 ```{r}
 N_norway <- length(mean_norway)
