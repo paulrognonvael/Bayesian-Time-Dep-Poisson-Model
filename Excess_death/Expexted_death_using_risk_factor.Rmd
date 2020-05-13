@@ -237,7 +237,7 @@ data_list_england <- list(
 ```
 
 ```{r}
-death_england <- stan("Neg_bin_simple.stan", iter = 2000, chains = 4,
+death_england <- stan("Neg_bin_time_deo.stan", iter = 2000, chains = 4,
   data = data_list_england, seed = 1)
 
 ```
@@ -282,7 +282,7 @@ data_list_italy <- list(
 ```
 
 ```{r}
-death_italy <- stan("Neg_bin_simple.stan", iter = 2000, chains = 4,
+death_italy <- stan("Neg_bin_time_dep.stan", iter = 2000, chains = 4,
   data = data_list_italy, seed = 1)
 
 ```
