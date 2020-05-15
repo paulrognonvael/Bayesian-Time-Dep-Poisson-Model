@@ -119,7 +119,8 @@ data_norway$week <- 1:17
 
 pivot_and_plot <- function(data){
   data <- pivot_longer(data,cols = starts_with("X"),names_to = "year", values_to = "deaths")
-  p <- ggplot(data) + geom_line(aes(x=week,y=deaths,col=year))
+  p <- ggplot(data) + geom_line(aes(x=week,y=deaths,col=year)) +
+    theme(legend.text=element_text(size=4))
   return(p)
 }
 
@@ -145,10 +146,10 @@ grid.arrange(plots[[5]],plots[[6]],plots[[7]],plots[[8]],ncol=2)
 
 ### Overdispersion
 
-Our data is characterized by much larger mean than variance. For example, Table \ref{tab:tab1} shows the weekly means and variance for Belgium.
+Our data is characterized by much larger variance than mean, it is overdispersed. For example, Table \ref{tab:tab1} shows the weekly means and variance for Belgium.
 
 ```{r, eval = TRUE}
-trans_belgium <- t(data_belgium)[2:ncol(data_belgium),]
+trans_belgium <- t(data_belgium)[,7:16]
 weekly_means <- colMeans(trans_belgium) 
 weekly_var <- diag(cov(trans_belgium))
 
@@ -159,8 +160,8 @@ kable(df, "latex",
   booktabs = T,
   align = "c",
   digits = 0,
-  col.names = as.character(1:17),
-  caption = "\\label{tab:tab1} Means and variances of weekly deaths in France"
+  col.names = as.character(8:17),
+  caption = "\\label{tab:tab1} Means and variances of weekly deaths in Belgium"
   ) %>%
   kable_styling(
     latex_options = c("hold_position", "condensed")
@@ -210,7 +211,7 @@ $$(1)\hspace{0.3cm}O_{COV,i} \sim \mathcal{P}( E_i\theta_i\theta_{t,i})$$
 $$(2)\hspace{0.3cm}O_{COV,i} \sim \mathcal{NB}( E_i \theta_i\theta_{t,i},\phi)$$
 
 where:
-$$\theta_{t,i} = \alpha+\beta\theta_{t,i-1}$$
+$$\log(\theta_{t,i}) = \alpha + \beta \log(\theta_{t,i-1}) $$
 
 ### Bayesian model
 
@@ -230,7 +231,6 @@ $$\forall i,\log(\theta_{t,i}) = \alpha + \beta \log(\theta_{t,i-1}) +\epsilon, 
 where $\sigma$, $\alpha$, $\beta$ and $\sigma_t$ are hyperparameters with hyperpriors:
 
 $$\sigma \sim \mathcal{U}(a_{\sigma},b_{\sigma})$$
-  
 $$\alpha \sim \mathcal{N}(\mu_{\alpha},\sigma_{\alpha})$$
 $$\beta \sim \mathcal{U}(a_{\beta},b_{\beta})$$
 $$\sigma_t \sim \mathcal{N}(\mu_{\sigma_t},\sigma_{\sigma_t})$$
@@ -252,14 +252,13 @@ $$\phi \sim \mathcal{U}(a_{\phi},b_{\phi})$$
 where $\sigma$, $\alpha$, $\beta$ and $\sigma_t$ are hyperparameters with hyperpriors:
 
 $$\sigma \sim \mathcal{U}(a_{\sigma},b_{\sigma})$$
-  
 $$\alpha \sim \mathcal{N}(\mu_{\alpha},\sigma_{\alpha})$$
 $$\beta \sim \mathcal{U}(a_{\beta},b_{\beta})$$
 $$\sigma_t \sim \mathcal{N}(\mu_{\sigma_t},\sigma_{\sigma_t})$$
 
 ## Excess mortality on top of the reported COVID deaths
 
-To model excess mortality on top of reported COVID deaths, we use the same approach as for modelling of excess mortality during the COVID-19 outbreak with respect to non-outbreak times. We estimated the relative risk $\theta$ understood as the ratio of weekly mortality during the COVID-19 outbreak and the weekly expected mortality in non-outbreak times. We now adjust the exptected mortality $E_i$ to account for COVID deaths.
+To model excess mortality on top of reported COVID deaths, we use the same approach as for modelling of excess mortality during the COVID-19 outbreak with respect to non-outbreak times. We previously estimated the relative risk $\theta$ understood as the ratio of weekly mortality during the COVID-19 outbreak and the weekly expected mortality in non-outbreak times. We now adjust the exptected mortality $E_i$ to account for COVID deaths.
 
 $$Relative Risk_i = \theta_i = \frac{O_{COV,i}}{O_{noCOV,i}+D_i}$$
 
@@ -474,10 +473,7 @@ In the final report we will address the following  points:
 
 * exploring the possiblity of an additional layer in our hierarchical negative binomail model by gathering the different countries into the same model, 
 
-* validation of the model,
-
-* complete the EDA with missing countries
-
+* validation of the model.
 
 
 
