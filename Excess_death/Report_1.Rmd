@@ -29,6 +29,7 @@ library(tidyr)
 library(kableExtra)
 library(tidyverse)
 library(gridExtra)
+library(bayesplot)
 ```
 
 
@@ -56,7 +57,7 @@ In this report, we propose a Bayesian approach to estimate the excess mortality 
 
 ## Description
 
-We gathered weekly data of the total number of deaths for weeks 2 to 17 in the following countries and following years:
+Every European state has an established monitoring system of death of nationals, often centralized by the local national statistics institute. Those platforms offer a good quality and reliable source to estimate excess mortality. We gathered weekly data of the total number of deaths for weeks 2 to 17 in the following countries and following years:
 
 * Norway: years 2014 to 2020 
 
@@ -282,12 +283,20 @@ knitr::include_graphics("Poisson_belgium.png")
 
 The negative binomial model proved to be much more suited to our data. This is not surprising givent the overdispersion we observed in the exploratory data analysis.
 
-Reading the data
+## Negative binomial model
+
+The negative binomial model proved to be much more suited to our data. This is not surprising given the overdispersion we observed in the exploratory data analysis.
+
+### Reading the data
 ```{r}
 data_netherland<- read.csv("data/Death_week_2_17_netherland.csv", sep = ";")
 data_england_wales <- read.csv("data/England_Wales_weekly.csv",sep = ";")
 data_italy <- read.csv("data/italy_week_deaths.csv", sep = ",")
 data_norway<- read.csv("data/Norway_total_death.csv", sep = ";")
+data_germany <-read.csv("data/Germany.csv", sep = ";")
+data_switzerland <- read.csv("data/switzerland.csv", sep = ";")
+data_france <- read.csv("data/data_france/weekly_deaths_france_week1_16_years2010_2020.csv", header = T, sep = ",")
+data_belgium <- read.csv("data/data_belgium/weekly_deaths_belgium_week1_17_years2009_2020.csv", header = T, sep = ",")
 ```
 
 
@@ -305,17 +314,47 @@ england_2020 <- as.vector(as.matrix(data_england_wales)[,13])
 
 Extracting data Italy
 ```{r}
+data_italy <- data_italy[-14,]
 mean_italy <- as.vector(as.matrix(data_italy)[,9])
 italy_2020 <- as.vector(as.matrix(data_italy)[,8])
 ```
 
 Extracting the data for Norway
 ```{r}
+data_norway <- data_norway[-17, ]
 mean_norway <- as.vector(as.matrix(data_norway)[,8])
 norway_2020<-as.vector(as.matrix(data_norway)[,7])
 ```
 
-###Setting up the stan lists
+Extracting the data of Germany
+```{r}
+mean_germany <- rowMeans(data_germany[, c(2,3,4,5)])
+data_germany <- cbind(data_germany, mean_germany)
+germany_2020 <- as.vector(as.matrix(data_germany)[,6])
+```
+
+Extracting the data of Switzerland
+```{r}
+mean_swiss <- rowMeans(data_switzerland[, c(3,4,5,6,7)])
+data_switzerland <- cbind(data_switzerland, mean_swiss)
+swiss_2020 <- as.vector(as.matrix(data_switzerland)[,2])
+```
+
+Extracting the data of France
+```{r}
+mean_france <- rowMeans(data_france[, c(2:11)])
+data_france <- cbind(data_france, mean_france)
+france_2020 <- as.vector(as.matrix(data_france)[,12])
+```
+
+Extracting the data of Belgium
+```{r}
+mean_belgium <- rowMeans(data_belgium[, c(2:12)])
+data_belgium <- cbind(data_belgium, mean_belgium)
+belgium_2020 <- as.vector(as.matrix(data_belgium)[,13])
+```
+
+### Setting up the stan lists
 
 ```{r}
 create_list <- function(N, E, O){
@@ -344,10 +383,14 @@ data_list_netherland <- create_list(length(mean_netherland), mean_netherland, ne
 data_list_england_wales <- create_list( length(mean_england),mean_england,england_2020 )
 data_list_italy <- create_list(length(mean_italy), mean_italy, italy_2020)
 data_list_norway <- create_list(length(mean_norway), mean_norway, norway_2020)
+data_list_france <- create_list(length(mean_france), mean_france, france_2020)
+data_list_belgium <- create_list(length(mean_belgium), mean_belgium, belgium_2020)
+data_list_germany <- create_list(length(mean_germany), mean_germany, germany_2020)
+data_list_switzerland <- create_list(length(mean_swiss), mean_swiss, swiss_2020)
 ```
 
 
-Fit the stan models
+### Fit the stan models
 
 <!-- The controlparameters and the number of itterations can be set in the params section on top -->
 ```{r, results="hide"}
@@ -364,6 +407,18 @@ risk_italy <- stan(params$stanfile, iter = params$iter, chains = 4,
 risk_norway <- stan(params$stanfile, iter = params$iter, chains = 4,
   data = data_list_norway, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
 
+risk_germany <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_germany, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+risk_switzerland <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_switzerland, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+risk_france <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_france, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+risk_belgium <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_belgium, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
 ```
 
 There is a problem with divergency in our model meaning means and medians could be unreliable.
@@ -377,10 +432,7 @@ pairs(risk_netherland, pars = c("phi", "sigma", "alpha", "beta", "sigma_time"))
 
 
 
-
-
-
-# Funtions
+# Functions
 
 Funciton for outputgraphs
 ```{r}
@@ -460,8 +512,41 @@ data_norway <- create_CI_theta_vec(risk_norway, length(mean_norway))
 plot_risk(data_norway, "Norway")
 ```
 
-notice: negative risk in week 17!! Consistent with dat a:)  (norway goes from 2-17 in weeks)
+## Germany
+```{r}
+data_germany <- create_CI_theta_vec(risk_germany, length(mean_germany))
+plot_risk(data_germany, "Germany")
+```
 
+
+#Switzerland
+```{r}
+data_switzerland <- create_CI_theta_vec(risk_switzerland, length(mean_swiss))
+plot_risk(data_switzerland, "Switzerland")
+```
+
+# France
+```{r}
+data_france <- create_CI_theta_vec(risk_france, length(mean_france))
+plot_risk(data_france, "France")
+```
+
+# Belgium
+```{r}
+data_belgium <- create_CI_theta_vec(risk_belgium, length(mean_belgium))
+plot_risk(data_belgium, "Belgium")
+```
+
+# Results
+Let's summarise briefly the main results coming out of this first analysis on COVID-19 data for each country.\
+As expected, they reflect the evolution of the pandemy throughout Western Europe. \ 
+In all the countries analyzed, expect for Norway, we clearly see a change in the behaviour of the curve of the risk factor, proving the incredible impact of the virus on our countries.
+We can practically divide the analyzed nations in two main categories: one in which falls the ones that reached the pick of deaths and that overcame it and the ones in which they're still fighting against the virus. \
+In the former group we can assign practically every country we studied, exception for Italy and England which we will comment separately. The trend is clearly ascending in the weeks in which pandemy exploded in Europe, but it decreases in the following period.\
+Even if the behaviour of the curve is the same, it's important to analyze the differences between these countries that come up from our analysis. \
+First thing that arises easily is that the values of the risk factor are disequal. For example in Germany, which claims a low number of deaths, the risk factor stays in the neighborhood of the value 1 which is taken as "normal threshold", while in France they reach pick of 1.7 and in Norway, in which there are around 200 certified deaths for COVID, the factor is less than 1. \
+It's worth to notice the beahviour of the curve of Belgium. Even if the total number of deaths registered for COVID-19 is low, the pick reached by the curve is really high. \
+Total different situation in Italy and England, probably the most affected countries in Europe, with the highest number of people who lost their lives because of the virus. Both the countries have a pick greater than 2. Italy data need to be analysed better since we have not a recent reliable source for the months of April and May. The risk, in this case, can be underestimated. 
 
 # Future work
 
@@ -475,13 +560,9 @@ In the final report we will address the following  points:
 
 * validation of the model.
 
-
-
-
 <!-- add explanatory variables for the risk $\theta_i$ (% of elderly people, % smokers, % obecity, % time of lockdown).  -->
 
 <!-- $log(\theta_i) \sim Normal(\beta_i + \beta_1 X_1 + \beta_2 X_2,\sigma_i^2)$ -->
-
 
 
 
