@@ -2,87 +2,286 @@
 title: "Excess death in relation to Covid-19"
 date: '`r format(Sys.Date(),"%e de %B, %Y")`'
 output:
-  html_document:
-    df_print: paged
-    toc: yes
   pdf_document:
     number_sections: yes
     toc: yes
+    includes:  
+      in_header: my_header.tex
 params:
   stanfile: "neg_bin_time_dep.stan"
   iter: 5000
   adapt_delta: 0.99
-  max_treedepth: 15
-  
 ---
 
+
 ```{r, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, warning = FALSE, error = FALSE, message = FALSE,
+  tidy.opts = list(width.cutoff = 55), eval = FALSE
+)
+```
+
+
+```{r, include=FALSE, eval = TRUE}
 library(rstan)
 library(ggplot2)
 library(tidyr)
+library(kableExtra)
+library(tidyverse)
+library(gridExtra)
 ```
 
 
-# Aim
+# Problem
 
-This project aims to estimate a risk factor connected to excess death and analyse the correlation between this excess and reported cases of Covid-19. 
+As of May 15th 2020, the global death toll of the unfolding COVID-19 outbreak stands at 302 493 (*citation needed*). The global and national official death toll figures have drawn much attention and sparked vivid debate because they are at the center of the evaluation and comparison of the public health responses of national and local governments. 
 
-#######################################################################################################################################
+Among the controversies, there is first a debate on the severity of COVID-19 when compared to the yearly flu outbreak. Brazil's President Jair Bolsonaro refered the COVID-19 as a 'little flu' and refused to implement in his country the drastic lockdown measures that many other countries have enforced (*citation needed*). 
+
+Second, the limits of testing in terms of tests availability and accuracy have led many observers to point at a likely underreporting of deaths due to the novel virus. Moreover, deaths that might be indirectly due to the COVID-19 crisis because of, for example, a collapse of the health system, are not counted in official figures. On April 26th 2020, the Financial Times headlined that global coronavirus death toll could be 60% higher than reported (*citation needed*). 
+
+Finally, differences in testing and reporting policies across countries but also regions have casted more doubts on the veracity of the reporting figures. Belgium has reported the highest number of deaths per 100 000 inhabitants but Belgian officials also say they are counting in a way that no other country in the world is currently doing: counting deaths in hospitals and care homes, but also including deaths in care homes that are suspected, not confirmed, as COVID-19 cases (*citation needed*).
+
+There is a need of a rigorous estimation of the excess mortality in the weeks of the outbreak. A direct week by week comparison of the observed number of deaths to historical averages as done by the Financial Times analysts is a first approach but is deeply limited as it fails to consider the variance of the number of deaths across years. 
+
+In this report, we propose a Bayesian approach to estimate the excess mortality in the outbreak weeks through relative risk. Our model intends to provide parts of the answer to the following questions:
+
+* Is mortality significantly higher than usual in weeks of the outbreak?
+
+* If confirmed, is there significant excess mortality on top of the reported COVID deaths?
+
+<!-- * Can country to country differences in known risk factors explain the differences in mortality?  -->
+
 # Data
 
-The data used is weekly data of the total number of deaths in the following countries:
+## Description
 
-- Norway
-- Netherland
-- Belgium
-- Germany
-- Switserland
-- Italy
-- Spain
-- France
+We gathered weekly data of the total number of deaths for weeks 2 to 17 in the following countries and following years:
 
-The data is obtained for week 2- 17 for 2020-2018 
-<!-- (# is this correct?)  -->
-for all the countries and some additional years for some of the countries. 
-The data is retrieved from national statistic centers for the recpectiv countries, see the bibliografy. 
+* Norway: years 2014 to 2020 
 
-To be able to preform analytics all data were transformed to the same structure visualized bellow. 
-<!-- (# the are not 100% equal but though they still have the same structure).  -->
+* Netherland: years 2017 to 2020
 
-Later on the weekly number of corrona registered deaths will also be used. 
+* Belgium: years 2009 to 2020
 
-```{r}
-head(read.csv("data/Death_week_2_17_netherland.csv", sep = ";"))
+* Germany: years 2016 to 2020
+
+* Switzerland: years 2015 to 2020
+
+* Italy: years 2015 to 2020
+
+* France: years 2010 to 2020
+
+* England and Wales: years 2010 to 2020
+
+The data have been retrieved from national statistic institutes of the respective countries. For each country the data were transformed to a similar structure than can be visualized below. 
+
+```{r, eval = TRUE}
+df <- head(read.csv("data/Death_week_2_17_netherland.csv", sep = ";"))
+kable(df,
+  align = "c",
+  caption = "Number of deaths by week in the Netherlands")
 ```
 
-# Process 
+## Exploratory data analysis
 
-<!-- (thought that we could discribe shourtly the different models we have been working on) -->
+### Visualization
+
+Fig.\ref{fig:fig1} and Fig.\ref{fig:fig2} show the weekly deaths over weeks 1 to 17 for each of the countries and over the years. Most countries show the same pattern with a large peak between weeks 10 and 16 in 2020 which clearly stands out of from other years. Notably, Switzerland show a peak in the same weeks in 2020 but it is not larger than other peaks observed in previous years. Norway shows no peak, and on a contrary it shows a trough, which might be the number of deaths for an incomplete week.
+
+```{r, , eval = TRUE}
+data_netherland<- read.csv("data/Death_week_2_17_netherland.csv", sep = ";")
+data_england_wales <- read.csv("data/England_Wales_weekly.csv",sep = ";")
+data_italy <- read.csv("data/italy_week_deaths.csv", sep = ",")
+data_norway<- read.csv("data/Norway_total_death.csv", sep = ";")
+data_france<- read.csv("data/weekly_deaths_france_week1_16_years2010_2020.csv", sep = ",")
+data_belgium<- read.csv("data/weekly_deaths_belgium_week1_17_years2009_2020.csv", sep = ",")
+data_germany<- read.csv("data/germany.csv", sep = ";")
+data_switzerland<- read.csv("data/switzerland.csv", sep = ";")
+
+colnames(data_england_wales)[1] <- "week"
+data_england_wales <- data_england_wales[,c(1:11,13)]
+colnames(data_germany)[1] <- "week"
+data_italy <- data_italy[,2:8]
+data_netherland <- data_netherland[,1:5]
+colnames(data_switzerland)[1] <- "week"
+data_norway <- data_norway[,1:(ncol(data_norway)-1)]
+data_norway$week <- 1:17
+
+# data_netherland <- pivot_longer(data_netherland,cols = starts_with("X"),names_to = "year", values_to = "deaths")
+# data_england_wales <- pivot_longer(data_england_wales,cols = starts_with("X"),names_to = "year", values_to = "deaths")
+# data_italy <- pivot_longer(data_italy,cols = starts_with("X"),names_to = "year", values_to = "deaths")
+# data_norway <- pivot_longer(data_norway,cols = starts_with("X"),names_to = "year", values_to = "deaths")
+# data_france <- pivot_longer(data_france,cols = starts_with("X"),names_to = "year", values_to = "deaths")
+# data_belgium <- pivot_longer(data_belgium,cols = starts_with("X"),names_to = "year", values_to = "deaths")
+# data_germany <- pivot_longer(data_germany,cols = starts_with("X"),names_to = "year", values_to = "deaths")
+# data_switzerland <- pivot_longer(data_switzerland,cols = starts_with("X"),names_to = "year", values_to = "deaths")
+
+pivot_and_plot <- function(data){
+  data <- pivot_longer(data,cols = starts_with("X"),names_to = "year", values_to = "deaths")
+  p <- ggplot(data) + geom_line(aes(x=week,y=deaths,col=year))
+  return(p)
+}
+
+datasets <- list(data_netherland,data_england_wales,
+                 data_italy,data_norway,data_france,
+                 data_belgium,data_germany,data_switzerland)
+countries <- c("Netherlands","England & Wales","Italy","Norway",
+               "France","Belgium","Germany","Switzerland")
+plots <- list()
+
+for(i in 1:length(datasets)){
+  plots[[i]] <- pivot_and_plot(datasets[[i]]) + ggtitle(countries[i])
+}
+```
+
+```{r, eval = TRUE, fig.cap="\\label{fig:fig1} Weekly deaths by year and country"}
+grid.arrange(plots[[1]],plots[[2]],plots[[3]],plots[[4]],ncol=2)
+```
+
+```{r, eval = TRUE, fig.cap="\\label{fig:fig1bis} Weekly deaths by year and country bis"}
+grid.arrange(plots[[5]],plots[[6]],plots[[7]],plots[[8]],ncol=2)
+```
+
+### Overdispersion
+
+Our data is characterized by much larger mean than variance. For example, Table \ref{tab:tab1} shows the weekly means and variance for Belgium.
+
+```{r, eval = TRUE}
+trans_belgium <- t(data_belgium)[2:ncol(data_belgium),]
+weekly_means <- colMeans(trans_belgium) 
+weekly_var <- diag(cov(trans_belgium))
+
+df <- rbind( weekly_means,weekly_var)
+row.names(df) <- c("Mean","Variance")
+
+kable(df, "latex",
+  booktabs = T,
+  align = "c",
+  digits = 0,
+  col.names = as.character(1:17),
+  caption = "\\label{tab:tab1} Means and variances of weekly deaths in France"
+  ) %>%
+  kable_styling(
+    latex_options = c("hold_position", "condensed")
+  )
+```
 
 
-#######################################################################################################################################
+
 # Model 
 
-<!-- ####### This is wrong, needs to be changed to neg bin with  -->
+## Excess mortality
 
-The distribution used will be  
+### Statistical model
 
-<!-- this has to change -->
+We approach the modelling of excess mortality by estimating the relative risk $\theta$ understood as the ratio of weekly mortality during the COVID-19 outbreak and the weekly mortality in non-outbreak times.
 
-$$(1)\hspace{0.3cm}O_i \sim Poisson(E_i\theta_i).$$
+$$Relative Risk_i = \theta_i = \frac{mortality_{COV,i}}{mortality_{noCOV,i}}=\frac{\frac{O_{COV,i}}{N}}{\frac{O_{noCOV,i}}{N}} = \frac{O_{COV,i}}{O_{noCOV,i}}$$
 
-where $O_i$ are the observed number of deaths in week $i$, $E_i$ would be the known expected number of deaths for the same week and $\theta_i$ is the riskfactor connected to week $i$. $E_i$ will be the historical average of death for week $i$. This parameter is considered to be stable for the last ten years so it is estimated as an average of the number of years we have data for for the respective countries. 
+where $O_{COV,i}$ is the observed number of deaths in week $i$ of COVID outbreak, $O_{noCOV,i}$ the number of deaths for the same week in non-outbreak times and $N$ is the population assumed stable accross years.
 
-Hence the model will estimate the risk factor $\theta_{i,2020}$. If 1 is outside of the credibal intervals the risk will be considerd significant and we can assume there is a precanse of exsess death. 
+The number of deaths $O$ is a count variable. For such variable, two commonly used statistical models are the Poisson model (1) and the negative binomial model (2) that we parametrize with location and scale parameters.
 
-The $log(\theta_i)$ are assumed to follow a normal distribution with parameters 
+$$(1)\hspace{0.3cm}O_{COV,i} \sim \mathcal{P}(\lambda), \hspace{0.1cm}E(O_{COV,i}) = Var(O_{COV,i}) = \lambda$$
 
-$log(\theta_i)\sim Normal(\mu_i,\sigma_i)$ (#this might also change slightly)
+$$(2)\hspace{0.3cm}O_{COV,i} \sim \mathcal{NB}(\mu,\phi),\hspace{0.1cm} E(O_{COV,i}) = \mu, \hspace{0.1cm}V(O_{COV,i}) = \mu+ \frac{\mu^2}{\phi}$$
 
-with $\mu_i$ and $\sigma_i$ again are normaly distributed with shared hyperparameters. 
+A major difference between the two is that the Poisson model assumes the mean is equal to the variance while the negative binomial model has one more parameter that allows for overdispersion.
 
-#######################################################################################################################################
-#Analysis
+We have:
+
+$$O_{COV,i}= O_{noCOV,i}\theta_i \Rightarrow E(O_{COV,i})= E(O_{noCOV,i})\theta_i = E_i \theta_i$$
+
+where $E_i$ is the expected number of deaths in week $i$ in non-outbreak times. For each week $i$, we estimate $E_i$  as the historical average of number of deaths in year prior to 2020.
+
+We therefore define the following statistical models:
+
+$$(1)\hspace{0.3cm}O_{COV,i} \sim \mathcal{P}( E_i \theta_i)$$
+
+$$(2)\hspace{0.3cm}O_{COV,i} \sim \mathcal{NB}( E_i \theta_i,\phi)$$
+
+In thoses models, a value of $\theta_i$ larger than 1 can be interpreted as excess mortality in week $i$ with respect to non-outbreak times and a value smaller than 1 as reduced mortality. This approach to modelling mortality is handy as the estimated value is standardized to the expected number of deaths and can therefore be compared between weeks and countries.
+
+From the exploratory data analysis, we see that there is a clear time dependence in the weekly mortality. We then introduce a time structured random effect $\theta_t$ in our models. We use a autoregressive structure of order 1 as time strcuture. Our models are then as follows:
+
+$$(1)\hspace{0.3cm}O_{COV,i} \sim \mathcal{P}( E_i\theta_i\theta_{t,i})$$
+
+$$(2)\hspace{0.3cm}O_{COV,i} \sim \mathcal{NB}( E_i \theta_i\theta_{t,i},\phi)$$
+
+where:
+$$\theta_{t,i} = \alpha+\beta\theta_{t,i-1}$$
+
+### Bayesian model
+
+We propose hierarchichal models for our Bayesian estimation of $\theta$ and $\theta_t$. 
+
+Poisson model (1):
+
+$$(O_{COV,2},...,O_{COV,17}|(\theta_2,\theta_{t,2}),...,(\theta_{17},\theta_{t,17})) \sim \prod_{i=2}^{17}{\mathcal{P}(E_i \theta_i\theta_{t,i})}$$
+
+with parameters priors:
+
+$$(\log(\theta_2),...\log(\theta_{17})) \sim \mathcal{N}(0,\sigma)$$
+
+$$\forall i,\log(\theta_{t,i}) = \alpha + \beta \log(\theta_{t,i-1}) +\epsilon, \hspace{0.15cm} \epsilon \sim \mathcal{N}(0,\sigma_t)$$
+
+
+where $\sigma$, $\alpha$, $\beta$ and $\sigma_t$ are hyperparameters with hyperpriors:
+
+$$\sigma \sim \mathcal{U}(a_{\sigma},b_{\sigma})$$
+  
+$$\alpha \sim \mathcal{N}(\mu_{\alpha},\sigma_{\alpha})$$
+$$\beta \sim \mathcal{U}(a_{\beta},b_{\beta})$$
+$$\sigma_t \sim \mathcal{N}(\mu_{\sigma_t},\sigma_{\sigma_t})$$
+
+Similarly the negative binomial model (2) is:
+
+Poisson model (1):
+
+$$(O_{COV,2},...,O_{COV,17}|(\theta_2,\theta_{t,2}),..,(\theta_{17},\theta_{t,17})) \sim \prod_{i=2}^{17}{\mathcal{P}(E_i (\theta_i\theta_{t,i})}$$
+
+with parameters priors:
+
+$$(\log(\theta_2),...,\log(\theta_{17})) \sim \mathcal{N}(0,\sigma)$$
+
+$$\forall i,\log(\theta_{t,i}) = \alpha + \beta \log(\theta_{t,i-1}) +\epsilon, \hspace{0.15cm} \epsilon \sim \mathcal{NB}( E_i \theta_i\theta_{t,i},\phi)$$
+
+$$\phi \sim \mathcal{U}(a_{\phi},b_{\phi})$$
+
+where $\sigma$, $\alpha$, $\beta$ and $\sigma_t$ are hyperparameters with hyperpriors:
+
+$$\sigma \sim \mathcal{U}(a_{\sigma},b_{\sigma})$$
+  
+$$\alpha \sim \mathcal{N}(\mu_{\alpha},\sigma_{\alpha})$$
+$$\beta \sim \mathcal{U}(a_{\beta},b_{\beta})$$
+$$\sigma_t \sim \mathcal{N}(\mu_{\sigma_t},\sigma_{\sigma_t})$$
+
+## Excess mortality on top of the reported COVID deaths
+
+To model excess mortality on top of reported COVID deaths, we use the same approach as for modelling of excess mortality during the COVID-19 outbreak with respect to non-outbreak times. We estimated the relative risk $\theta$ understood as the ratio of weekly mortality during the COVID-19 outbreak and the weekly expected mortality in non-outbreak times. We now adjust the exptected mortality $E_i$ to account for COVID deaths.
+
+$$Relative Risk_i = \theta_i = \frac{O_{COV,i}}{O_{noCOV,i}+D_i}$$
+
+where $O_{COV,i}$ is the observed number of deaths in week $i$ of COVID outbreak, $O_{noCOV,i}$ the number of deaths for the same week in non-outbreak times and $D_i$ is the reported number of deaths due to COVID in week $i$.
+
+We have:
+
+$$\tilde{E_i}=E_i+D_i$$
+
+# Results
+
+## Poisson model
+
+We started by estimating the above Poisson model in a simpler form, without the time dependence. The model resulted insuitable despite having tried numerous variations of the hierarchical model: changing the priors and levels of the multilevel model. Indeed, as can be observed in Fig. \ref{fig:fig2} for Belgium, the model adequately captured the change in relative risk in peak weeks but failed to adequately reflect variance with extremely narrow confidence intervals. We obtained similar results for the Netherlands, England & Wales, Italy and Germany. As a consequence, we abandonned the model.
+
+```{r, eval = TRUE, fig.cap="\\label{fig:fig2} Poisson model estimates for Belgium",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("Poisson_belgium.png")
+```
+
+## Negative binomial model
+
+The negative binomial model proved to be much more suited to our data. This is not surprising givent the overdispersion we observed in the exploratory data analysis.
 
 Reading the data
 ```{r}
@@ -265,16 +464,28 @@ plot_risk(data_norway, "Norway")
 notice: negative risk in week 17!! Consistent with dat a:)  (norway goes from 2-17 in weeks)
 
 
+# Future work
 
-#######################################################################################################################################
+In the final report we will address the following  points:
 
-# Possible extentions
+* convergence issues,
 
-To extend the model one could explore an hierarchical model adding the different countries to the same model, add explanatory variables for the risk $\theta_i$ (% of elderly people, % smokers, % obecity, % time of lockdown). 
+* implementation and obtention of results for the excess deaths on top of reported deaths,
 
-$log(\theta_i) \sim Normal(\beta_i + \beta_1 X_1 + \beta_2 X_2,\sigma_i^2)$
+* exploring the possiblity of an additional layer in our hierarchical negative binomail model by gathering the different countries into the same model, 
 
-Also we would like to explore the possibility of doing the same model with E_i changing to the historical average plus the number of registered covid-19 deaths. Then the risk factor theta could share some light on how much unexplaind death occures in the different countries. 
+* validation of the model,
+
+* complete the EDA with missing countries
+
+
+
+
+
+<!-- add explanatory variables for the risk $\theta_i$ (% of elderly people, % smokers, % obecity, % time of lockdown).  -->
+
+<!-- $log(\theta_i) \sim Normal(\beta_i + \beta_1 X_1 + \beta_2 X_2,\sigma_i^2)$ -->
+
 
 
 
