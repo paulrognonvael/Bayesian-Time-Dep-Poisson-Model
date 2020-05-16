@@ -8,15 +8,16 @@ output:
     includes:  
       in_header: my_header.tex
 params:
-  stanfile: "neg_bin_time_dep.stan"
+  stanfile: "Neg_bin_time_dep.stan"
   iter: 5000
   adapt_delta: 0.99
+  max_treedepth: 15
 ---
 
 
 ```{r, include=FALSE}
 knitr::opts_chunk$set(
-  echo = FALSE, warning = FALSE, error = FALSE, message = FALSE,
+  echo = TRUE, warning = FALSE, error = FALSE, message = FALSE,
   tidy.opts = list(width.cutoff = 55), eval = FALSE
 )
 ```
@@ -77,7 +78,7 @@ Every European state has an established monitoring system of death of nationals,
 
 The data have been retrieved from national statistic institutes of the respective countries. For each country the data were transformed to a similar structure than can be visualized below. 
 
-```{r, eval = TRUE}
+```{r, echo = FALSE, eval = TRUE}
 df <- head(read.csv("data/Death_week_2_17_netherland.csv", sep = ";"))
 kable(df,
   align = "c",
@@ -90,7 +91,7 @@ kable(df,
 
 Fig.\ref{fig:fig1} and Fig.\ref{fig:fig2} show the weekly deaths over weeks 1 to 17 for each of the countries and over the years. Most countries show the same pattern with a large peak between weeks 10 and 16 in 2020 which clearly stands out of from other years. Notably, Switzerland show a peak in the same weeks in 2020 but it is not larger than other peaks observed in previous years. Norway shows no peak, and on a contrary it shows a trough, which might be the number of deaths for an incomplete week.
 
-```{r, , eval = TRUE}
+```{r, echo = FALSE, eval = TRUE}
 data_netherland<- read.csv("data/Death_week_2_17_netherland.csv", sep = ";")
 data_england_wales <- read.csv("data/England_Wales_weekly.csv",sep = ";")
 data_italy <- read.csv("data/italy_week_deaths.csv", sep = ",")
@@ -137,11 +138,11 @@ for(i in 1:length(datasets)){
 }
 ```
 
-```{r, eval = TRUE, fig.cap="\\label{fig:fig1} Weekly deaths by year and country"}
+```{r, echo = FALSE, eval = TRUE, fig.cap="\\label{fig:fig1} Weekly deaths by year and country"}
 grid.arrange(plots[[1]],plots[[2]],plots[[3]],plots[[4]],ncol=2)
 ```
 
-```{r, eval = TRUE, fig.cap="\\label{fig:fig1bis} Weekly deaths by year and country bis"}
+```{r, echo = FALSE, eval = TRUE, fig.cap="\\label{fig:fig1bis} Weekly deaths by year and country bis"}
 grid.arrange(plots[[5]],plots[[6]],plots[[7]],plots[[8]],ncol=2)
 ```
 
@@ -149,7 +150,7 @@ grid.arrange(plots[[5]],plots[[6]],plots[[7]],plots[[8]],ncol=2)
 
 Our data is characterized by much larger variance than mean, it is overdispersed. For example, Table \ref{tab:tab1} shows the weekly means and variance for Belgium.
 
-```{r, eval = TRUE}
+```{r, echo = FALSE, eval = TRUE}
 trans_belgium <- t(data_belgium)[,7:16]
 weekly_means <- colMeans(trans_belgium) 
 weekly_var <- diag(cov(trans_belgium))
@@ -238,15 +239,13 @@ $$\sigma_t \sim \mathcal{N}(\mu_{\sigma_t},\sigma_{\sigma_t})$$
 
 Similarly the negative binomial model (2) is:
 
-Poisson model (1):
-
-$$(O_{COV,2},...,O_{COV,17}|(\theta_2,\theta_{t,2}),..,(\theta_{17},\theta_{t,17})) \sim \prod_{i=2}^{17}{\mathcal{P}(E_i (\theta_i\theta_{t,i})}$$
+$$(O_{COV,2},...,O_{COV,17}|(\theta_2,\theta_{t,2}),..,(\theta_{17},\theta_{t,17})) \sim \prod_{i=2}^{17}{\mathcal{NB}(E_i (\theta_i\theta_{t,i})}$$
 
 with parameters priors:
 
 $$(\log(\theta_2),...,\log(\theta_{17})) \sim \mathcal{N}(0,\sigma)$$
 
-$$\forall i,\log(\theta_{t,i}) = \alpha + \beta \log(\theta_{t,i-1}) +\epsilon, \hspace{0.15cm} \epsilon \sim \mathcal{NB}( E_i \theta_i\theta_{t,i},\phi)$$
+$$\forall i,\log(\theta_{t,i}) = \alpha + \beta \log(\theta_{t,i-1}) +\epsilon, \hspace{0.15cm} \epsilon \sim \mathcal{N}( E_i \theta_i\theta_{t,i},\phi)$$
 
 $$\phi \sim \mathcal{U}(a_{\phi},b_{\phi})$$
 
@@ -283,24 +282,19 @@ knitr::include_graphics("Poisson_belgium.png")
 
 The negative binomial model proved to be much more suited to our data. This is not surprising givent the overdispersion we observed in the exploratory data analysis.
 
-## Negative binomial model
-
-The negative binomial model proved to be much more suited to our data. This is not surprising given the overdispersion we observed in the exploratory data analysis.
-
-### Reading the data
+Reading the data
 ```{r}
 data_netherland<- read.csv("data/Death_week_2_17_netherland.csv", sep = ";")
 data_england_wales <- read.csv("data/England_Wales_weekly.csv",sep = ";")
 data_italy <- read.csv("data/italy_week_deaths.csv", sep = ",")
 data_norway<- read.csv("data/Norway_total_death.csv", sep = ";")
-data_germany <-read.csv("data/Germany.csv", sep = ";")
+data_germany <-read.csv("data/germany.csv", sep = ";")
 data_switzerland <- read.csv("data/switzerland.csv", sep = ";")
 data_france <- read.csv("data/data_france/weekly_deaths_france_week1_16_years2010_2020.csv", header = T, sep = ",")
 data_belgium <- read.csv("data/data_belgium/weekly_deaths_belgium_week1_17_years2009_2020.csv", header = T, sep = ",")
 ```
 
-
-Extracting the data for the Netherland
+Extracting the data for the Netherlands
 ```{r}
 mean_netherland <- as.vector(as.matrix(data_netherland)[,6])
 netherland_2020<-as.vector(as.matrix(data_netherland)[,5])
@@ -354,8 +348,7 @@ data_belgium <- cbind(data_belgium, mean_belgium)
 belgium_2020 <- as.vector(as.matrix(data_belgium)[,13])
 ```
 
-### Setting up the stan lists
-
+Setting up the stan lists
 ```{r}
 create_list <- function(N, E, O){
   data_list <-  list(
@@ -390,11 +383,59 @@ data_list_switzerland <- create_list(length(mean_swiss), mean_swiss, swiss_2020)
 ```
 
 
-### Fit the stan models
+Fitting the stan models
+```{r}
+data{ 
+  int <lower = 0> N;
+  real E[N];
+  int O[N];
+  real phi_a;
+  real phi_b;
+  real sigma_a;
+  real sigma_b;
+  real alpha_mu;
+  real alpha_sigma;
+  real beta_a;
+  real beta_b;
+  real sigma_time_mu;
+  real sigma_time_sigma;
+  
+}
+
+parameters{
+  real log_theta[N];
+  real log_theta_time[N];
+  real <lower  = 0> phi;
+  real <lower  = 0> sigma;
+  real alpha;
+  real <lower=-1, upper=1> beta;
+  real<lower=0> sigma_time;
+}
+
+model{
+
+  O[1] ~ neg_binomial_2(E[1]* exp(log_theta[1]),phi);
+    log_theta[1]~ normal(0,sigma);
+    log_theta_time[1] ~ normal(0,sigma);
+
+  for (i in 2:N){
+    O[i] ~ neg_binomial_2(E[i]* exp(log_theta[i] + log_theta_time[i]),phi);
+    log_theta[i]~ normal(0,sigma);
+    log_theta_time[i] ~ normal(alpha+beta*log_theta_time[i-1], sigma_time);
+  }
+
+  phi~ uniform(phi_a,phi_b);
+  sigma ~ uniform(sigma_a,sigma_b);
+  
+  alpha ~ normal(alpha_mu,alpha_sigma);
+  beta ~ uniform(beta_a,beta_b);
+  sigma_time ~ normal(sigma_time_mu,sigma_time_sigma);
+}
+```
+
 
 <!-- The controlparameters and the number of itterations can be set in the params section on top -->
 ```{r, results="hide"}
-
 risk_netherland <- stan(params$stanfile, iter = params$iter, chains = 4,
   data = data_list_netherland, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
 
@@ -421,35 +462,35 @@ risk_belgium <- stan(params$stanfile, iter = params$iter, chains = 4,
 
 ```
 
-There is a problem with divergency in our model meaning means and medians could be unreliable.
+There is a problem of divergence in our model meaning means and medians could be unreliable.
 
-To explore this a bit more the pairs() function suggested by R are used.
+<!-- To explore this a bit more the pairs() function suggested by R are used. -->
 
 <!-- Appearantly these red dots are a problem but I do not know how to fix it..  -->
-```{r}
+```{r, include = FALSE}
 pairs(risk_netherland, pars = c("phi", "sigma", "alpha", "beta", "sigma_time"))
 ```
 
 
 
-# Functions
-
-Funciton for outputgraphs
 ```{r}
+####################
+# Helper functions
+####################
+
+#Function for output graphs
 plot_risk <- function(data, country_name){
   g<- ggplot(data = data, aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
-  geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
-  geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
-  geom_hline(yintercept = 1, col = "red")+
-  ggtitle("Riskfactor for" , country_name)
-  
+    geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+    geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+    geom_hline(yintercept = 1, col = "red")+
+    ggtitle("Relative risk for" , country_name)
+  ggsave(paste0("output_",country_name,".png"))
   return(g)
 }
-```
 
+# Function for creating the dataframe with thetas and the bounds for the credible interval. 
 
-Function for creating the dataframe with thetas and the bounds for the credible interval. 
-```{r}
 create_CI_theta_vec <- function(risk_data, N){
   fit<-summary(risk_data)
   results <- as.data.frame(fit$summary)
@@ -465,79 +506,109 @@ create_CI_theta_vec <- function(risk_data, N){
 }
 ```
 
-
-
-#Results
-
-## Netherland
+### The Netherlands
 
 <!-- not sure if we need this in the report -->
-```{r}
+```{r, include = FALSE}
 print(risk_netherland)
 ```
 
 <!-- can this be used for validation?  -->
-```{r}
-library(bayesplot)
+```{r, include = FALSE}
 posterior <- as.data.frame(risk_netherland)
 mcmc_trace(risk_netherland, pars = "log_theta[12]")
 ```
-
 
 ```{r}
 data_netherland <- create_CI_theta_vec(risk_netherland, length(mean_netherland))
 plot_risk(data_netherland, "Netherland")
 ```
 
-## England and Wales
+```{r, eval = TRUE, fig.cap="\\label{fig:fig3} Negative binomial model estimates for the Netherlands",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_Netherland.png")
+```
+
+### England and Wales
 ```{r}
 data_england_wales <- create_CI_theta_vec(risk_england_wales, length(mean_england))
 plot_risk(data_england_wales, "England and Wales")
 ```
 
+```{r, eval = TRUE, fig.cap="\\label{fig:fig4} Negative binomial model estimates for England and Wales",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_England and Wales.png")
+```
 
-
-## Italy 
+### Italy 
 
 ```{r}
 data_italy <- create_CI_theta_vec(risk_italy, length(mean_italy))
 plot_risk(data_italy, "Italy")
 ```
 
+```{r, eval = TRUE, fig.cap="\\label{fig:fig5} Negative binomial model estimates for Italy",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_Italy.png")
+```
 
-## Norway
+### Norway
 
 ```{r}
 data_norway <- create_CI_theta_vec(risk_norway, length(mean_norway))
 plot_risk(data_norway, "Norway")
 ```
 
-## Germany
+```{r, eval = TRUE, fig.cap="\\label{fig:fig6} Negative binomial model estimates for Norway",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_Norway.png")
+```
+
+### Germany
 ```{r}
 data_germany <- create_CI_theta_vec(risk_germany, length(mean_germany))
 plot_risk(data_germany, "Germany")
 ```
 
+```{r, eval = TRUE, fig.cap="\\label{fig:fig7} Negative binomial model estimates for Germany",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_Germany.png")
+```
 
-#Switzerland
+
+### Switzerland
 ```{r}
 data_switzerland <- create_CI_theta_vec(risk_switzerland, length(mean_swiss))
 plot_risk(data_switzerland, "Switzerland")
 ```
 
-# France
+```{r, eval = TRUE, fig.cap="\\label{fig:fig8} Negative binomial model estimates for Switzerland",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_Switzerland.png")
+```
+
+### France
 ```{r}
 data_france <- create_CI_theta_vec(risk_france, length(mean_france))
 plot_risk(data_france, "France")
 ```
 
-# Belgium
+```{r, eval = TRUE, fig.cap="\\label{fig:fig9} Negative binomial model estimates for France",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_France.png")
+```
+
+### Belgium
 ```{r}
 data_belgium <- create_CI_theta_vec(risk_belgium, length(mean_belgium))
 plot_risk(data_belgium, "Belgium")
 ```
 
-# Results
+```{r, eval = TRUE, fig.cap="\\label{fig:fig10} Negative binomial model estimates for Belgium",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_England and Wales.png")
+```
+
+
+```{r}
+# Save output
+save.image("excess_deaths_output.Rdata")
+```
+
+
+# Discussion
 Let's summarise briefly the main results coming out of this first analysis on COVID-19 data for each country.\
 As expected, they reflect the evolution of the pandemy throughout Western Europe. \ 
 In all the countries analyzed, expect for Norway, we clearly see a change in the behaviour of the curve of the risk factor, proving the incredible impact of the virus on our countries.
@@ -553,6 +624,8 @@ Total different situation in Italy and England, probably the most affected count
 In the final report we will address the following  points:
 
 * convergence issues,
+
+* analyse further the time structure significance,
 
 * implementation and obtention of results for the excess deaths on top of reported deaths,
 
