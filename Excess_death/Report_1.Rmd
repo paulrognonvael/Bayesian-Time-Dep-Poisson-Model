@@ -204,7 +204,7 @@ The number of deaths $O$ is a count variable. For such variable, two commonly us
 
 <!-- I think we have to change from P to Poisson because P is easilly confuces with probablility -->
 
-$$(1)\hspace{0.3cm}O_{COV,i} \sim \mathcal{P}(\lambda), \hspace{0.1cm}E(O_{COV,i}) = Var(O_{COV,i}) = \lambda$$
+$$(1)\hspace{0.3cm}O_{COV,i} \sim \mathcal{PO}(\lambda), \hspace{0.1cm}E(O_{COV,i}) = Var(O_{COV,i}) = \lambda$$
 
 $$(2)\hspace{0.3cm}O_{COV,i} \sim \mathcal{NB}(\mu,\phi),\hspace{0.1cm} E(O_{COV,i}) = \mu, \hspace{0.1cm}V(O_{COV,i}) = \mu+ \frac{\mu^2}{\phi}$$
 
@@ -218,7 +218,7 @@ where $E_i$ is the expected number of deaths in week $i$ in non-outbreak times. 
 
 We therefore define the following statistical models:
 
-$$(1)\hspace{0.3cm}O_{COV,i} \sim \mathcal{Pois}( E_i \theta_i)$$
+$$(1)\hspace{0.3cm}O_{COV,i} \sim \mathcal{PO}( E_i \theta_i)$$
 
 $$(2)\hspace{0.3cm}O_{COV,i} \sim \mathcal{NB}( E_i \theta_i,\phi)$$
 
@@ -226,7 +226,7 @@ In these models, a value of $\theta_i$ larger than 1 can be interpreted as exces
 
 From the exploratory data analysis, we see that there is a clear time dependence in the weekly mortality. We therefor introduce a time structured random effect $\theta_t$ in our models. We use an auto-regressive structure of order 1 as time structure. Our models then become:
 
-$$(1)\hspace{0.3cm}O_{COV,i} \sim \mathcal{Pois}( E_i\theta_i\theta_{t,i})$$
+$$(1)\hspace{0.3cm}O_{COV,i} \sim \mathcal{PO}(E_i\theta_i\theta_{t,i})$$
 
 $$(2)\hspace{0.3cm}O_{COV,i} \sim \mathcal{NB}( E_i \theta_i\theta_{t,i},\phi)$$
 
@@ -243,7 +243,7 @@ Poisson model (1):
 
 <!-- $$(O_{COV,2},...,O_{COV,17}|(\theta_2,\theta_{t,2}),...,(\theta_{17},\theta_{t,17})) \sim \prod_{i=2}^{17}{\mathcal{P}(E_i \theta_i\theta_{t,i})}$$ -->
 
-$$\forall i,(O_{COV,i}|\theta_i) \sim {\mathcal{Pois}(E_i \theta_i\theta_{t,i})}$$
+$$\forall i,(O_{COV,i}|\theta_i) \sim {\mathcal{PO}(E_i \theta_i\theta_{t,i})}$$
 
 with parameters priors:
 
