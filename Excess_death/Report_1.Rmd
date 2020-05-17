@@ -84,11 +84,11 @@ The data have been retrieved from national statistic institutes of the respectiv
 <!-- This table is beeing moved by markdown.. not sure if I managed to fix it..  -->
 ```{r, echo = FALSE, eval = TRUE}
 df <- head(read.csv("data/Death_week_2_17_netherland.csv", sep = ";"))
-df <- df[,c("X2017", "X2018","X2019",  "X2020", "average")]
+df <- df[,c("week","X2017", "X2018","X2019",  "X2020", "average")]
 kable(df, "latex",
   booktabs = T,
   align = "c",
-  col.names = c("2017", "2018","2019",  "2020", "Average"),
+  col.names = c("Week","2017", "2018","2019",  "2020", "Average"),
   caption = "\\label{tab:tab1} Number of deaths by week in the Netherlands")%>%
   kable_styling(
     latex_options = c("hold_position", "condensed")
