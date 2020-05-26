@@ -126,36 +126,43 @@ plot_risk(data_netherland, "Netherland")
 ```{r}
 library(tidyverse)
 library(tidyr)
-sim_1<- rstan::extract(risk_netherland, "sim[1]")[[1]]
-sim_2<- rstan::extract(risk_netherland, "sim[2]")[[1]]
-sim_3<- rstan::extract(risk_netherland, "sim[3]")[[1]]
-sim_4<- rstan::extract(risk_netherland, "sim[4]")[[1]]
-sim_5<- rstan::extract(risk_netherland, "sim[5]")[[1]]
-sim_6<- rstan::extract(risk_netherland, "sim[6]")[[1]]
-sim_7<- rstan::extract(risk_netherland, "sim[7]")[[1]]
-sim_8<- rstan::extract(risk_netherland, "sim[8]")[[1]]
-sim_9<- rstan::extract(risk_netherland, "sim[9]")[[1]]
-sim_10<- rstan::extract(risk_netherland, "sim[10]")[[1]]
-sim_11<- rstan::extract(risk_netherland, "sim[11]")[[1]]
-sim_12<- rstan::extract(risk_netherland, "sim[12]")[[1]]
-sim_13<- rstan::extract(risk_netherland, "sim[13]")[[1]]
-sim_14<- rstan::extract(risk_netherland, "sim[14]")[[1]]
-sim_15<- rstan::extract(risk_netherland, "sim[15]")[[1]]
-sim_16<- rstan::extract(risk_netherland, "sim[16]")[[1]]
+####################
+# Helper functions
+####################
+extract_simulations <- function(risk_data){
+  sim_1<- rstan::extract(risk_data, "sim[1]")[[1]]
+  sim_2<- rstan::extract(risk_data, "sim[2]")[[1]]
+  sim_3<- rstan::extract(risk_data, "sim[3]")[[1]]
+  sim_4<- rstan::extract(risk_data, "sim[4]")[[1]]
+  sim_5<- rstan::extract(risk_data, "sim[5]")[[1]]
+  sim_6<- rstan::extract(risk_data, "sim[6]")[[1]]
+  sim_7<- rstan::extract(risk_data, "sim[7]")[[1]]
+  sim_8<- rstan::extract(risk_data, "sim[8]")[[1]]
+  sim_9<- rstan::extract(risk_data, "sim[9]")[[1]]
+  sim_10<- rstan::extract(risk_data, "sim[10]")[[1]]
+  sim_11<- rstan::extract(risk_data, "sim[11]")[[1]]
+  sim_12<- rstan::extract(risk_data, "sim[12]")[[1]]
+  sim_13<- rstan::extract(risk_data, "sim[13]")[[1]]
+  sim_14<- rstan::extract(risk_data, "sim[14]")[[1]]
+  sim_15<- rstan::extract(risk_data, "sim[15]")[[1]]
+  sim_16<- rstan::extract(risk_data, "sim[16]")[[1]]
+  posterior_chains <- tibble(sim_1, sim_2, sim_3, sim_4, sim_5, sim_6, sim_7, sim_8, sim_9, sim_10, sim_11, sim_12, sim_13, sim_14, sim_15, sim_16)
+  return(posterior_chains)
+}
 
-posterior_chains <- tibble(sim_1, sim_2, sim_3, sim_4, sim_5, sim_6, sim_7, sim_8, sim_9, sim_10, sim_11, sim_12, sim_13, sim_14, sim_15, sim_16)
-posterior_chains_mini <-cbind(t(posterior_chains[1:15,]), (data_netherland[,5]))
+posterior_chains <- extract_simulations(risk_netherland)
+posterior_chains_mini <-cbind(t(posterior_chains[1:10,]), (data_netherland[,5]))
 ```
 
 ```{r}
 library(ggplot2)
 
 library(reshape)
-png("validation.png")
+#png("validation.png")
 data <- data.frame(time = seq(1:16), posterior_chains_mini)
 Molten <- melt(data, id.vars = "time")
 g<- ggplot(Molten, aes(x = time, y = value, colour = variable)) + geom_line()
 g
-dev.off()
+#dev.off()
 ```
 
