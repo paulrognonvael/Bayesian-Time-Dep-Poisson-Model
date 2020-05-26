@@ -1,0 +1,111 @@
+---
+title: "Explore_priors"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+create_list <- function(N, E, O){
+  data_list <-  list(
+  N = N, 
+  E = E,
+  O = O,
+  sigma_a = 0.01,
+  sigma_b = 4,
+  alpha_mu = 0,
+  alpha_sigma = 4,
+  beta_a = -1, 
+  beta_b = 1,
+  sigma_time_mu = 0,
+  sigma_time_sigma= 25
+  )
+  return(data_list)
+}
+```
+
+    O[i] ~ poisson(E[i]* exp(log_theta[i] + log_theta_time[i]));
+    log_theta[i]~ normal(0,sigma);
+    log_theta_time[i] ~ normal(alpha+beta*log_theta_time[i-1], sigma_time);
+  }
+  sigma ~ uniform(sigma_a,sigma_b);
+  
+  alpha ~ normal(alpha_mu,alpha_sigma);
+  beta ~ uniform(beta_a,beta_b);
+  sigma_time ~ normal(sigma_time_mu,sigma_time_sigma);
+  
+  
+```{r}
+  sigma_mu = 2.25
+  sigma_sigma = 4
+  alpha_mu = 0
+  alpha_sigma = 0.5
+  beta_mu = 0.5
+  beta_sigma = 0.25
+  sigma_time_mu = 0
+  sigma_time_sigma= 4
+```
+  
+```{r}
+apriori<- function(mean_data){
+  sigma <- rnorm(1, mean = sigma_mu, sd = sigma_sigma)
+  while(sigma<=0){
+    sigma <- rnorm(1, mean = sigma_mu, sd = sigma_sigma)
+  }
+  sigma_time <- rnorm(1, mean = sigma_time_mu, sd = sigma_time_sigma)
+  while (sigma_time <= 0){
+    sigma_time <- rnorm(1, mean = sigma_time_mu, sd = sigma_time_sigma)
+  }
+  alpha <- rnorm(1, mean = alpha_mu, sd = alpha_sigma)
+  beta <- rnorm(1, mean = beta_mu, sd = beta_sigma)
+  log_theta <- rnorm(16, mean = 0, sigma)
+  log_theta_time <- rep(0,16)
+  log_theta_time[1] <- rnorm(1, mean = 0, sigma_time)
+  for (i in 2:16){
+    log_theta_time[1] <- rnorm(1, mean = alpha + beta*log_theta_time[i-1], sigma_time)
+  }                
+  O <- rep(0,16)
+  for (i in 1:16){
+    O[i] <- rpois(1, mean_england[i]*exp(log_theta[i]+ log_theta_time[i]))
+    print(exp(log_theta[i]+ log_theta_time[i]))
+    print(mean_england[i]*exp(log_theta[i]+ log_theta_time[i]))
+  }
+  return(O)
+}
+
+
+```
+
+```{r}
+apriori_england<- apriori(mean_england)
+```
+
+
+```{r}
+data_england_wales <- read.csv("data/England_Wales_weekly.csv",sep = ";")
+#Extracting data England and Wales
+mean_england <- as.vector(as.matrix(data_england_wales)[,12])
+mean_england
+```
+
+```{r}
+
+```
+
+
+```{r}
+ggplot(data = tibble(x=seq(1:16), O), aes(x, O)) + geom_line()
+```
+
+
+
+
+
+
+
+
+
+
+

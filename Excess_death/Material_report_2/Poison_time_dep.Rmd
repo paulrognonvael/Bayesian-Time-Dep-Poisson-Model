@@ -9,9 +9,9 @@ output:
     includes:  
 
 params:
-  stanfile: "Neg_bin_time_dep.stan"
-  iter: 5000
-  adapt_delta: 0.99
+  stanfile: "poison_time_dep.stan"
+  iter: 1000
+  adapt_delta: 0.9
   max_treedepth: 15
 ---
 
@@ -25,9 +25,12 @@ knitr::opts_chunk$set(
 
 ```{r, include=FALSE}
 #Reading the data
-data_netherland<- read.csv("/Users/aurorahofman/Documents/Utveksling/Baysiana/UPC-Final-Project-Bayesian-Analysis/Excess_death/data/Death_week_2_17_netherland.csv", sep = ";")
+data_netherland<- read.csv("data/Death_week_2_17_netherland.csv", sep = ";")
+data_england_wales <- read.csv("data/England_Wales_weekly.csv",sep = ";")
+data_norway<- read.csv("data/Norway_total_death.csv", sep = ";")
+data_france <- read.csv("data/data_france/weekly_deaths_france_week1_16_years2010_2020.csv", header = T, sep = ",")
+data_belgium <- read.csv("data/data_belgium/weekly_deaths_belgium_week1_17_years2009_2020.csv", header = T, sep = ",")
 ```
-
 
 ```{r, include=FALSE}
 #Extracting the data for the Netherlands
@@ -35,6 +38,34 @@ mean_netherland <- as.vector(as.matrix(data_netherland)[,6])
 netherland_2020<-as.vector(as.matrix(data_netherland)[,5])
 ```
 
+```{r, include=FALSE}
+#Extracting data England and Wales
+mean_england <- as.vector(as.matrix(data_england_wales)[,12])
+england_2020 <- as.vector(as.matrix(data_england_wales)[,13])
+```
+
+
+```{r, include=FALSE}
+#Extracting the data for Norway
+#data_norway <- data_norway[-17, ]
+mean_norway <- as.vector(as.matrix(data_norway)[,8])
+norway_2020<-as.vector(as.matrix(data_norway)[,7])
+```
+
+
+```{r, include=FALSE}
+#Extracting the data of France
+mean_france <- rowMeans(data_france[, c(2:11)])
+data_france <- cbind(data_france, mean_france)
+france_2020 <- as.vector(as.matrix(data_france)[,12])
+```
+
+```{r, include=FALSE}
+#Extracting the data of Belgium
+mean_belgium <- rowMeans(data_belgium[, c(2:12)])
+data_belgium <- cbind(data_belgium, mean_belgium)
+belgium_2020 <- as.vector(as.matrix(data_belgium)[,13])
+```
 
 
 ```{r}
@@ -57,16 +88,89 @@ create_list <- function(N, E, O){
 ```
 
 ```{r, include= FALSE}
-data_list_netherland <- create_list(length(mean_netherland), mean_netherland, netherland_2020)
+data_list_netherland <- create_list( length(mean_netherland),mean_netherland,netherland_2020 )
+data_list_england_wales <- create_list( length(mean_england),mean_england,england_2020 )
+data_list_norway <- create_list(length(mean_norway), mean_norway, norway_2020)
+data_list_france <- create_list(length(mean_france), mean_france, france_2020)
+data_list_belgium <- create_list(length(mean_belgium), mean_belgium, belgium_2020)
+```
 
+
+
+```{r}
+risk_netherland <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_netherland, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+risk_england_wales <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_england_wales, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+risk_norway <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_norway, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+
+risk_france <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_france, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+risk_belgium <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_belgium, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+```
+```{r}
+print(risk_belgium)
+```
+
+
+
+```{r}
+params_belgium <- as.data.frame(rstan::extract(risk_belgium, permuted=FALSE))
+names(params_belgium) <- gsub("chain:1.", "", names(params_belgium), fixed = TRUE)
+names(params_belgium) <- gsub("[", ".", names(params_belgium), fixed = TRUE)
+names(params_belgium) <- gsub("]", "", names(params_belgium), fixed = TRUE)
+params_belgium$iter <- 1:2000
+
+par(mar = c(4, 4, 0.5, 0.5))
+plot(params_belgium$iter, log(params_belgium$sigma), col="red", pch=16, cex=0.8,
+     xlab="Iteration", ylab="log(sigma)", ylim=c(-6, 4))
 ```
 
 ```{r}
-risk_netherland <- stan("poison_time_dep.stan", iter = 2000, chains = 4,
-  data = data_list_netherland, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+divergent <- get_sampler_params(risk_belgium, inc_warmup=FALSE)[[1]][,'divergent__']
+sum(divergent)/2000
+```
+```{r}
+divergent <- get_sampler_params(risk_belgium, inc_warmup=FALSE)[[1]][,'divergent__']
+params_belgium$divergent <- divergent
+
+div_params_belgium <- params_belgium[params_belgium$divergent == 1,]
+nondiv_params_belgium <- params_belgium[params_belgium$divergent == 0,]
+
+par(mar = c(4, 4, 0.5, 0.5))
+plot(nondiv_params_belgium$log_theta_time.16, (nondiv_params_belgium$sigma),
+     xlab="log_theta_1", ylab="log(sigma)", xlim=c(0, 1), ylim=c(0,0.5),
+     col="red", pch=16, cex=0.8)
+points(div_params_belgium$log_theta_time.16, (div_params_belgium$sigma),
+       col="green", pch=16, cex=0.8)
+```
+
+################################
+```{r}
+risk_belgium <- stan(file= "re_parametrization.stan", iter = params$iter, chains = 4,
+  data = data_list_belgium, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
 ```
 
 
+
+
+
+
+
+
+
+
+
+
+
+######################################
 
 ```{r, include=FALSE}
 ####################
@@ -103,19 +207,13 @@ create_CI_theta_vec <- function(risk_data, N){
 
 ### The Netherlands
 
-<!-- not sure if we need this in the report -->
-```{r, }
-print(risk_netherland)
-```
-
-<!-- can this be used for validation?  -->
 ```{r}
 library(bayesplot)
 posterior <- as.data.frame(risk_netherland)
-mcmc_trace(risk_netherland, pars = "log_theta_time[3]")
-mcmc_trace(risk_netherland, pars = "log_theta_time[4]")
-mcmc_trace(risk_netherland, pars = "log_theta_time[6]") 
-mcmc_trace(risk_netherland, pars = "sigma") 
+mcmc_trace(risk_belgium, pars = "log_theta_time[3]")
+mcmc_trace(risk_belgium, pars = "log_theta_time[4]")
+mcmc_trace(risk_belgium, pars = "log_theta_time[6]") 
+mcmc_trace(risk_belgium, pars = "sigma") 
 
 ```
 
@@ -150,8 +248,8 @@ extract_simulations <- function(risk_data){
   return(posterior_chains)
 }
 
-posterior_chains <- extract_simulations(risk_netherland)
-posterior_chains_mini <-cbind(t(posterior_chains[1:10,]), (data_netherland[,5]))
+posterior_chains <- extract_simulations(risk_belgium)
+posterior_chains_mini <-cbind(t(posterior_chains[1:20,]), belgium_2020)
 ```
 
 ```{r}
