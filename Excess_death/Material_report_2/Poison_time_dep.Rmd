@@ -1,0 +1,168 @@
+---
+title: "Poison_time_dep"
+date: '`r format(Sys.Date(),"%e de %B, %Y")`'
+author: Aurora Hofman, Giovanni Rigolino, Paul Rognon
+output:
+  pdf_document:
+    number_sections: yes
+    toc: yes
+    includes:  
+
+params:
+  stanfile: "Neg_bin_time_dep.stan"
+  iter: 5000
+  adapt_delta: 0.99
+  max_treedepth: 15
+---
+
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, warning = FALSE, error = FALSE, message = FALSE,
+  tidy.opts = list(width.cutoff = 55), eval = FALSE
+)
+```
+
+```{r, include=FALSE}
+#Reading the data
+data_netherland<- read.csv("/Users/aurorahofman/Documents/Utveksling/Baysiana/UPC-Final-Project-Bayesian-Analysis/Excess_death/data/Death_week_2_17_netherland.csv", sep = ";")
+```
+
+
+```{r, include=FALSE}
+#Extracting the data for the Netherlands
+mean_netherland <- as.vector(as.matrix(data_netherland)[,6])
+netherland_2020<-as.vector(as.matrix(data_netherland)[,5])
+```
+
+
+
+```{r}
+create_list <- function(N, E, O){
+  data_list <-  list(
+  N = N, 
+  E = E,
+  O = O,
+  sigma_a = 0.01,
+  sigma_b = 4,
+  alpha_mu = 0,
+  alpha_sigma = 4,
+  beta_a = -1, 
+  beta_b = 1,
+  sigma_time_mu = 0,
+  sigma_time_sigma= 25
+  )
+  return(data_list)
+}
+```
+
+```{r, include= FALSE}
+data_list_netherland <- create_list(length(mean_netherland), mean_netherland, netherland_2020)
+
+```
+
+```{r}
+risk_netherland <- stan("poison_time_dep.stan", iter = 2000, chains = 4,
+  data = data_list_netherland, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+```
+
+
+
+```{r, include=FALSE}
+####################
+# Helper functions
+####################
+
+#Function for output graphs
+plot_risk <- function(data, country_name){
+  g<- ggplot(data = data, aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+    geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+    geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+    geom_hline(yintercept = 1, col = "red")+
+    ggtitle("Relative risk for" , country_name)
+  ggsave(paste0("output_",country_name,".png"))
+  return(g)
+}
+
+# Function for creating the dataframe with thetas and the bounds for the credible interval. 
+
+create_CI_theta_vec <- function(risk_data, N){
+  fit<-summary(risk_data)
+  results <- as.data.frame(fit$summary)
+  
+  CI_upper <- exp(results$`97.5%`[1:N] +results$`97.5%`[(N+1):(2*N)])
+  CI_lower <- exp(results$`2.5%`[1:N] +results$`2.5%`[(N+1):(2*N)])
+
+  theta <- exp(results$mean[1:N] +results$mean[(N+1):(2*N)])
+  week <- seq(1:N)
+  data <- data.frame(week, CI_upper, CI_lower, theta)
+  return(data)
+
+}
+```
+
+### The Netherlands
+
+<!-- not sure if we need this in the report -->
+```{r, }
+print(risk_netherland)
+```
+
+<!-- can this be used for validation?  -->
+```{r}
+library(bayesplot)
+posterior <- as.data.frame(risk_netherland)
+mcmc_trace(risk_netherland, pars = "log_theta_time[3]")
+mcmc_trace(risk_netherland, pars = "log_theta_time[4]")
+mcmc_trace(risk_netherland, pars = "log_theta_time[6]") 
+mcmc_trace(risk_netherland, pars = "sigma") 
+
+```
+
+```{r}
+data_netherland <- create_CI_theta_vec(risk_netherland, length(mean_netherland))
+plot_risk(data_netherland, "Netherland")
+```
+```{r}
+library(tidyverse)
+library(tidyr)
+####################
+# Helper functions
+####################
+extract_simulations <- function(risk_data){
+  sim_1<- rstan::extract(risk_data, "sim[1]")[[1]]
+  sim_2<- rstan::extract(risk_data, "sim[2]")[[1]]
+  sim_3<- rstan::extract(risk_data, "sim[3]")[[1]]
+  sim_4<- rstan::extract(risk_data, "sim[4]")[[1]]
+  sim_5<- rstan::extract(risk_data, "sim[5]")[[1]]
+  sim_6<- rstan::extract(risk_data, "sim[6]")[[1]]
+  sim_7<- rstan::extract(risk_data, "sim[7]")[[1]]
+  sim_8<- rstan::extract(risk_data, "sim[8]")[[1]]
+  sim_9<- rstan::extract(risk_data, "sim[9]")[[1]]
+  sim_10<- rstan::extract(risk_data, "sim[10]")[[1]]
+  sim_11<- rstan::extract(risk_data, "sim[11]")[[1]]
+  sim_12<- rstan::extract(risk_data, "sim[12]")[[1]]
+  sim_13<- rstan::extract(risk_data, "sim[13]")[[1]]
+  sim_14<- rstan::extract(risk_data, "sim[14]")[[1]]
+  sim_15<- rstan::extract(risk_data, "sim[15]")[[1]]
+  sim_16<- rstan::extract(risk_data, "sim[16]")[[1]]
+  posterior_chains <- tibble(sim_1, sim_2, sim_3, sim_4, sim_5, sim_6, sim_7, sim_8, sim_9, sim_10, sim_11, sim_12, sim_13, sim_14, sim_15, sim_16)
+  return(posterior_chains)
+}
+
+posterior_chains <- extract_simulations(risk_netherland)
+posterior_chains_mini <-cbind(t(posterior_chains[1:10,]), (data_netherland[,5]))
+```
+
+```{r}
+library(ggplot2)
+
+library(reshape)
+#png("validation.png")
+data <- data.frame(time = seq(1:16), posterior_chains_mini)
+Molten <- melt(data, id.vars = "time")
+g<- ggplot(Molten, aes(x = time, y = value, colour = variable)) + geom_line()
+g
+#dev.off()
+```
+
