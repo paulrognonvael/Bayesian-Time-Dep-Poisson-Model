@@ -10,11 +10,20 @@ output:
 
 params:
   stanfile: "poison_time_dep.stan"
-  iter: 1000
-  adapt_delta: 0.9
+  iter: 5000
+  adapt_delta: 0.99
   max_treedepth: 15
 ---
-
+```{r, include=FALSE, eval = TRUE}
+# libraries
+library(rstan)
+library(ggplot2)
+library(tidyr)
+library(kableExtra)
+library(tidyverse)
+library(gridExtra)
+library(bayesplot)
+```
 
 ```{r, include=FALSE}
 knitr::opts_chunk$set(
@@ -23,33 +32,64 @@ knitr::opts_chunk$set(
 )
 ```
 
+
+SUMMARY AND TODO:
+
+Validation looks good for all countries, would be nice is the line for 2020 was in black or some colour it is possible to see. This is however not important!! 
+
+Updating data: Data for norway and england/wales are up to date: TODO: update belgium and france
+
+Implementing Poisson model: Done for all countries with good results. TODO: update the theroy part in the report now with a poisson model. 
+
+Convergency: Fixed by forsing sigma to be greater that 0.01. We had a very common problem with not an easy "real" fix. When sigma is very small the geometry gets difficult for stan to handel and it results in divergencies. Since we know by looking at historical data we are going to have variance in our model we though it okay to set this restrictio. Now we do not have any errors. 
+
+Apriorie: Made an apriori predictive. The medians are good but there are some outliers precent. Giovanni and I decided not to put to much enery into this since the median was very spot on with regards to historical data and it is not a problem for us that the apriori has a lot of variance. 
+
+Implementation with koronadata: Done and looking good :) Seems like a lot of countries experienced a period of less deaths after "lockdowm / focus on covid" this oculd be due to people in general beeing a lot more carefull and hence not dying from "stupid things". 
+
+Report: added all the plots for the parts above. TODO: copy paste from part 1 what is reusable, comment all plots, results, etc. Addapt the intro to the current countries, update referancelist with korona refferances, discribe where the covid data is collected and relyability connected to this. 
+
+https://coronavirus.data.gov.uk
+https://github.com/CSSEGISandData/COVID-19/blob/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_deaths_global.csv
+
+
+
+
+
+
 ```{r, include=FALSE}
 #Reading the data
-data_netherland<- read.csv("data/Death_week_2_17_netherland.csv", sep = ";")
 data_england_wales <- read.csv("data/England_Wales_weekly.csv",sep = ";")
 data_norway<- read.csv("data/Norway_total_death.csv", sep = ";")
 data_france <- read.csv("data/data_france/weekly_deaths_france_week1_16_years2010_2020.csv", header = T, sep = ",")
 data_belgium <- read.csv("data/data_belgium/weekly_deaths_belgium_week1_17_years2009_2020.csv", header = T, sep = ",")
-```
+#covid_data
+data_covid <- read.csv("data/france_belgium_norway_korona.csv")
+data_covid_england <- read.csv("data/england_wales_weekly_covid_deaths.csv")
 
-```{r, include=FALSE}
-#Extracting the data for the Netherlands
-mean_netherland <- as.vector(as.matrix(data_netherland)[,6])
-netherland_2020<-as.vector(as.matrix(data_netherland)[,5])
 ```
 
 ```{r, include=FALSE}
 #Extracting data England and Wales
 mean_england <- as.vector(as.matrix(data_england_wales)[,12])
 england_2020 <- as.vector(as.matrix(data_england_wales)[,13])
+
+data_covid_england <- data_covid_england[,-c(1,2)]
+data_covid_england <- c(rep(0,6), data_covid_england)
 ```
 
 
 ```{r, include=FALSE}
 #Extracting the data for Norway
-#data_norway <- data_norway[-17, ]
+
+data_norway <- data_norway[, -c(8:10)]
+norway_without_20 <- data_norway[,-7]
+average <- rowMeans(norway_without_20)
+data_norway <- cbind(data_norway, average)
+
 mean_norway <- as.vector(as.matrix(data_norway)[,8])
-norway_2020<-as.vector(as.matrix(data_norway)[,7])
+norway_2020 <- as.vector(as.matrix(data_norway)[,7])
+norway_covid <- as.vector(as.matrix(data_covid)[-18,4])
 ```
 
 
@@ -58,6 +98,7 @@ norway_2020<-as.vector(as.matrix(data_norway)[,7])
 mean_france <- rowMeans(data_france[, c(2:11)])
 data_france <- cbind(data_france, mean_france)
 france_2020 <- as.vector(as.matrix(data_france)[,12])
+france_covid <- as.vector(as.matrix(data_covid)[-c(17,18),2])
 ```
 
 ```{r, include=FALSE}
@@ -65,6 +106,157 @@ france_2020 <- as.vector(as.matrix(data_france)[,12])
 mean_belgium <- rowMeans(data_belgium[, c(2:12)])
 data_belgium <- cbind(data_belgium, mean_belgium)
 belgium_2020 <- as.vector(as.matrix(data_belgium)[,13])
+belgium_covid <- as.vector(as.matrix(data_covid)[-18,3])
+```
+
+#Exploring apriori with basis of the historical data of england. 
+
+GOAL: find apriori parameters that will capture what we now about weekly deaths. 
+Hence it is important that our apriori predictive give values that capture historical data. 
+Since the situation of having a pandemic is rather nwe meaning we do not have htat much information on the risk factor we want the prior distribution to have enough variance. 
+
+After some trial and error we end up with the following values:
+
+```{r}
+sigma_a = 0
+sigma_b = 1
+alpha_mu = 0
+alpha_sigma =1
+beta_a = -1
+beta_b = 1
+sigma_time_mu = 0
+sigma_time_sigma= 1
+
+```
+
+We know that there is variance in weekly deaths form year to year. Hence we exlude the possibility of sigma = 0. This is not necacary as an apriori condition but is important for the geometry of the stan model. Since this is consistend with our knowledge of how the risk varies a bit from year to year this is imposed. 
+
+We know from historical data that we have some variance from year to year in number of people diey but the variance is not enormous. Hence we let both sigma and sigma time be half normals (excluding valueus very close to zero) with mu = 0 and variance= 1. 
+
+When it comes to the weakly relation between deaths we do not now that much and let beta kom from a unif(-1,1) (AR structure says it has to be in this interval, sourse: Giovanni :P )
+
+For the constant alpha we are fairly sure it will be small hence a normal 0, 1.
+
+
+```{r}
+apriori_theta<- function(mean_data){
+  sigma <- rnorm(1, sigma_a, sigma_b)
+  while (sigma <= 0.01){
+    sigma <- rnorm(1, mean = sigma_a, sd = sigma_b)
+  }
+  #sigma_time <- runif(1, 0.01, 25)
+
+  sigma_time <- rnorm(1, mean = sigma_time_mu, sd = sigma_time_sigma)
+  while (sigma_time <= 0.01){
+    sigma_time <- rnorm(1, mean = sigma_time_mu, sd = sigma_time_sigma)
+  }
+  
+  alpha <- rnorm(1, mean = alpha_mu, sd = alpha_sigma)
+  beta <- runif(1,beta_a,beta_b)
+  log_theta <- rnorm(16, mean = 0, sigma)
+  log_theta_time <- rep(0,16)
+  log_theta_time[1] <-rnorm(1, mean = 0, sigma_time)
+  for (i in 2:16){
+    log_theta_time[1] <- rnorm(1, mean = alpha + beta*log_theta_time[i-1], sigma_time)
+  } 
+  theta_return <- exp(log_theta + log_theta_time)
+
+  return(theta_return)
+
+}
+```
+
+```{r}
+apriori_theta_england <- apriori_theta(mean_england)
+matrix_theta <-c()
+for (i in 1:10000){
+  matrix_theta <- cbind(matrix_theta, apriori_theta(mean_england))
+}
+matrix_theta <- data.frame(matrix_theta)
+```
+
+```{r}
+
+matrix_theta_1 <- as.data.frame(matrix_theta[1:16,])
+boxplot(t(matrix_theta_1), ylim = c(0, 10))
+abline(h=1, col = "red")
+```
+
+Good center but many outliers. Also one assumes exual number of "outliers" between (0,1) because they get tranformed when going from the log scale. 
+
+```{r}
+apriori_O<- function(mean_data){
+  sigma <- runif(1, sigma_a, sigma_b)
+  #sigma_time <- runif(1, 0.01, 25)
+  
+  sigma_time <- rnorm(1, mean = sigma_time_mu, sd = sigma_time_sigma)
+  while (sigma_time <= 0){
+    sigma_time <- rnorm(1, mean = sigma_time_mu, sd = sigma_time_sigma)
+  }
+  
+  alpha <- rnorm(1, mean = alpha_mu, sd = alpha_sigma)
+  beta <- runif(1,beta_a,beta_b)
+  log_theta <- rnorm(16, mean = 0, sigma)
+  log_theta_time <- rep(0,16)
+  log_theta_time[1] <-rnorm(1, mean = 0, sigma_time)
+  for (i in 2:16){
+    log_theta_time[1] <- rnorm(1, mean = alpha + beta*log_theta_time[i-1], sigma_time)
+  } 
+  theta_return <- exp(log_theta + log_theta_time)
+  O <- rep(0,16)
+  for (i in 1:16){
+   O[i] <- rpois(1, mean_data[i]*theta_return)
+  }
+  return(O)
+  # return(theta_return)
+}
+```
+
+```{r}
+matrix_O <-c()
+
+for (i in 1:10000){
+  matrix_O <- cbind(matrix_O, apriori_O(mean_england))
+}
+```
+
+```{r}
+matrix_1 <- as.data.frame(matrix_O[1:8,])
+boxplot(t(matrix_1), ylim = c(0, 150000))
+abline(h=mean_england[1], col = "red")
+```
+
+```{r}
+apriori_theta_belgium <- apriori_theta(mean_belgium)
+matrix_theta <-c()
+for (i in 1:10000){
+  matrix_theta <- cbind(matrix_theta, apriori_theta(mean_belgium))
+}
+matrix_theta <- data.frame(matrix_theta)
+```
+
+```{r}
+
+matrix_theta_1 <- as.data.frame(matrix_theta[1:16,])
+boxplot(t(matrix_theta_1), ylim = c(0, 10))
+abline(h=1, col = "red")
+```
+
+Good center but many outliers. Also one assumes exual number of "outliers" between (0,1) because they get tranformed when going from the log scale. 
+
+
+```{r}
+matrix_O <-c()
+
+for (i in 1:10000){
+  matrix_O <- cbind(matrix_O, apriori_O(mean_belgium))
+}
+```
+
+```{r}
+matrix_1 <- as.data.frame(matrix_O[1:8,])
+boxplot(t(matrix_1), ylim = c(0, 100000))
+abline(h=mean_belgium[1], col = "red")
 ```
 
 
@@ -74,33 +266,37 @@ create_list <- function(N, E, O){
   N = N, 
   E = E,
   O = O,
-  sigma_a = 0.01,
+  sigma_a = 0,#0.01,
+  sigma_b = 1,
+  alpha_mu = 0,
+  alpha_sigma =1,
+  beta_a = -1,
+  beta_b = 1,
+  sigma_time_mu = 0,
+  sigma_time_sigma= 1
+  )
+  return(data_list)
+}
+```
+sigma_a = 0.01,
   sigma_b = 4,
   alpha_mu = 0,
   alpha_sigma = 4,
   beta_a = -1, 
   beta_b = 1,
   sigma_time_mu = 0,
-  sigma_time_sigma= 25
-  )
-  return(data_list)
-}
-```
-
+  sigma_time_sigma= 5
 ```{r, include= FALSE}
-data_list_netherland <- create_list( length(mean_netherland),mean_netherland,netherland_2020 )
+
 data_list_england_wales <- create_list( length(mean_england),mean_england,england_2020 )
 data_list_norway <- create_list(length(mean_norway), mean_norway, norway_2020)
 data_list_france <- create_list(length(mean_france), mean_france, france_2020)
 data_list_belgium <- create_list(length(mean_belgium), mean_belgium, belgium_2020)
 ```
 
-
+# running stan files
 
 ```{r}
-risk_netherland <- stan(params$stanfile, iter = params$iter, chains = 4,
-  data = data_list_netherland, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
-
 risk_england_wales <- stan(params$stanfile, iter = params$iter, chains = 4,
   data = data_list_england_wales, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
 
@@ -115,81 +311,14 @@ risk_belgium <- stan(params$stanfile, iter = params$iter, chains = 4,
   data = data_list_belgium, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
 
 ```
-```{r}
-print(risk_belgium)
-```
-
 
 
 ```{r}
-params_belgium <- as.data.frame(rstan::extract(risk_belgium, permuted=FALSE))
-names(params_belgium) <- gsub("chain:1.", "", names(params_belgium), fixed = TRUE)
-names(params_belgium) <- gsub("[", ".", names(params_belgium), fixed = TRUE)
-names(params_belgium) <- gsub("]", "", names(params_belgium), fixed = TRUE)
-params_belgium$iter <- 1:2000
-
-par(mar = c(4, 4, 0.5, 0.5))
-plot(params_belgium$iter, log(params_belgium$sigma), col="red", pch=16, cex=0.8,
-     xlab="Iteration", ylab="log(sigma)", ylim=c(-6, 4))
+print(risk_england_wales)
 ```
+
 
 ```{r}
-divergent <- get_sampler_params(risk_belgium, inc_warmup=FALSE)[[1]][,'divergent__']
-sum(divergent)/2000
-```
-```{r}
-divergent <- get_sampler_params(risk_belgium, inc_warmup=FALSE)[[1]][,'divergent__']
-params_belgium$divergent <- divergent
-
-div_params_belgium <- params_belgium[params_belgium$divergent == 1,]
-nondiv_params_belgium <- params_belgium[params_belgium$divergent == 0,]
-
-par(mar = c(4, 4, 0.5, 0.5))
-plot(nondiv_params_belgium$log_theta_time.16, (nondiv_params_belgium$sigma),
-     xlab="log_theta_1", ylab="log(sigma)", xlim=c(0, 1), ylim=c(0,0.5),
-     col="red", pch=16, cex=0.8)
-points(div_params_belgium$log_theta_time.16, (div_params_belgium$sigma),
-       col="green", pch=16, cex=0.8)
-```
-
-################################
-```{r}
-risk_belgium <- stan(file= "re_parametrization.stan", iter = params$iter, chains = 4,
-  data = data_list_belgium, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-######################################
-
-```{r, include=FALSE}
-####################
-# Helper functions
-####################
-
-#Function for output graphs
-plot_risk <- function(data, country_name){
-  g<- ggplot(data = data, aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
-    geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
-    geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
-    geom_hline(yintercept = 1, col = "red")+
-    ggtitle("Relative risk for" , country_name)
-  ggsave(paste0("output_",country_name,".png"))
-  return(g)
-}
-
-# Function for creating the dataframe with thetas and the bounds for the credible interval. 
-
 create_CI_theta_vec <- function(risk_data, N){
   fit<-summary(risk_data)
   results <- as.data.frame(fit$summary)
@@ -203,24 +332,65 @@ create_CI_theta_vec <- function(risk_data, N){
   return(data)
 
 }
+plot_risk <- function(data, country_name){
+  g<- ggplot(data = data, aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+    geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+    geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+    geom_hline(yintercept = 1, col = "red")+
+    ggtitle("Relative risk for" , country_name)
+  ggsave(paste0("output_",country_name,".png"))
+  return(g)
+}
 ```
 
-### The Netherlands
+
+### England and Wales
+```{r}
+data_england_wales <- create_CI_theta_vec(risk_england_wales, length(mean_england))
+plot_risk(data_england_wales, "England and Wales")
+```
+
+```{r, eval = TRUE, fig.cap="\\label{fig:fig4} Negative binomial model estimates for England and Wales",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_England and Wales.png")
+```
+### Norway
 
 ```{r}
-library(bayesplot)
-posterior <- as.data.frame(risk_netherland)
-mcmc_trace(risk_belgium, pars = "log_theta_time[3]")
-mcmc_trace(risk_belgium, pars = "log_theta_time[4]")
-mcmc_trace(risk_belgium, pars = "log_theta_time[6]") 
-mcmc_trace(risk_belgium, pars = "sigma") 
-
+data_norway <- create_CI_theta_vec(risk_norway, length(mean_norway))
+plot_risk(data_norway, "Norway")
 ```
+
+```{r, eval = TRUE, fig.cap="\\label{fig:fig6} Negative binomial model estimates for Norway",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_Norway.png")
+```
+
+### France
+```{r}
+data_france <- create_CI_theta_vec(risk_france, length(mean_france))
+plot_risk(data_france, "France")
+```
+
+```{r, eval = TRUE, fig.cap="\\label{fig:fig9} Negative binomial model estimates for France",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_France.png")
+```
+### Belgium
+```{r}
+data_belgium <- create_CI_theta_vec(risk_belgium, length(mean_belgium))
+plot_risk(data_belgium, "Belgium")
+```
+
+```{r, eval = TRUE, fig.cap="\\label{fig:fig10} Negative binomial model estimates for Belgium",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_England and Wales.png")
+```
+
 
 ```{r}
-data_netherland <- create_CI_theta_vec(risk_netherland, length(mean_netherland))
-plot_risk(data_netherland, "Netherland")
+# Save output
+save.image("excess_deaths_output.Rdata")
 ```
+
+#VALIDATION
+
 ```{r}
 library(tidyverse)
 library(tidyr)
@@ -248,19 +418,142 @@ extract_simulations <- function(risk_data){
   return(posterior_chains)
 }
 
-posterior_chains <- extract_simulations(risk_belgium)
-posterior_chains_mini <-cbind(t(posterior_chains[1:20,]), belgium_2020)
+
 ```
 
 ```{r}
+####################
+# Helper functions THIS IS NOT WORKING DONT KNOW WHY.. 
+####################
 library(ggplot2)
-
 library(reshape)
-#png("validation.png")
-data <- data.frame(time = seq(1:16), posterior_chains_mini)
-Molten <- melt(data, id.vars = "time")
-g<- ggplot(Molten, aes(x = time, y = value, colour = variable)) + geom_line()
-g
-#dev.off()
+plot_validation <- function(posterior_chain, N_weeks){
+  data <- data.frame(time = seq(1:N_weeks), posterior_chain)
+  Molten <- melt(data, id.vars = "time")
+  g<- ggplot(Molten, aes(x = time, y = value, colour = variable)) + geom_line()
+  return(g)
+}
 ```
 
+## England Wales
+
+```{r}
+posterior_chains_england <- extract_simulations(risk_england_wales)
+posterior_chains_mini_england <-cbind(t(posterior_chains_england[1:25,]), england_2020)
+data_val_england <- data.frame(time = seq(1:16), posterior_chains_mini_england)
+Molten <- melt(data_val_england, id.vars = "time")
+g_england<- ggplot(Molten, aes(x = time, y = value, colour = variable)) + geom_line()
+g_england
+```
+
+
+## Norway
+
+```{r}
+posterior_chains_norway <- extract_simulations(risk_norway)
+posterior_chains_mini_norway <-cbind(t(posterior_chains_norway[1:25,]), norway_2020)
+data_val_norway <- data.frame(time = seq(1:16), posterior_chains_mini_norway)
+Molten <- melt(data_val_norway, id.vars = "time")
+g_norway<- ggplot(Molten, aes(x = time, y = value, colour = variable)) + geom_line()
+g_norway
+```
+
+## France
+
+```{r}
+posterior_chains_france <- extract_simulations(risk_france)
+posterior_chains_mini_france <-cbind(t(posterior_chains_france[1:25,]), france_2020)
+data_val_france <- data.frame(time = seq(1:16), posterior_chains_mini_france)
+Molten <- melt(data_val_france, id.vars = "time")
+g_france<- ggplot(Molten, aes(x = time, y = value, colour = variable)) + geom_line()
+g_france
+```
+
+
+
+## Belgium
+
+```{r}
+posterior_chains_belgium <- extract_simulations(risk_belgium)
+posterior_chains_mini_belgium <-cbind(t(posterior_chains_belgium[1:25,]), belgium_2020)
+data_val_belgium <- data.frame(time = seq(1:16), posterior_chains_mini_belgium)
+Molten <- melt(data_val_belgium, id.vars = "time")
+g_belgium<- ggplot(Molten, aes(x = time, y = value, colour = variable)) + geom_line()
+g_belgium
+```
+
+
+
+
+
+# Model with koronadata:
+
+
+```{r}
+data_list_covid_england_wales <- create_list( length(mean_england),mean_england + data_covid_england,england_2020 )
+data_list_covid_norway <- create_list(length(mean_norway), mean_norway + norway_covid, norway_2020)
+data_list_covid_france <- create_list(length(mean_france), as.vector(mean_france + france_covid), france_2020)
+data_list_covid_belgium <- create_list(length(mean_belgium), mean_belgium+belgium_covid, belgium_2020)
+```
+
+
+```{r}
+library(rstan)
+risk_england_wales_covid <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_covid_england_wales, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+risk_norway_covid <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_covid_norway, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+risk_france_covid <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_covid_france, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+risk_belgium_covid <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_covid_belgium, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+```
+### England and Wales
+```{r}
+data_england_wales_covid <- create_CI_theta_vec(risk_england_wales_covid, length(mean_england))
+plot_risk(data_england_wales_covid, "England and Wales")
+```
+
+```{r, eval = TRUE, fig.cap="\\label{fig:fig4} Negative binomial model estimates for England and Wales",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_England and Wales.png")
+```
+
+### Norway
+
+```{r}
+data_norway_covid <- create_CI_theta_vec(risk_norway_covid, length(mean_norway))
+plot_risk(data_norway_covid, "Norway")
+```
+
+```{r, eval = TRUE, fig.cap="\\label{fig:fig6} Negative binomial model estimates for Norway",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_Norway.png")
+```
+
+### France
+```{r}
+data_france_covid <- create_CI_theta_vec(risk_france_covid, length(mean_france))
+plot_risk(data_france_covid, "France")
+```
+
+```{r, eval = TRUE, fig.cap="\\label{fig:fig9} Negative binomial model estimates for France",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_France.png")
+```
+### Belgium
+```{r}
+data_belgium_covid <- create_CI_theta_vec(risk_belgium_covid, length(mean_belgium))
+plot_risk(data_belgium_covid, "Belgium")
+```
+
+```{r, eval = TRUE, fig.cap="\\label{fig:fig10} Negative binomial model estimates for Belgium",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_from_Report_1/output_England and Wales.png")
+```
+
+
+```{r}
+# Save output
+save.image("excess_deaths_output.Rdata")
+```
