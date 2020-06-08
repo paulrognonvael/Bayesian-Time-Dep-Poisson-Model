@@ -1,0 +1,272 @@
+---
+title: "Poison_time_dep"
+date: '`r format(Sys.Date(),"%e de %B, %Y")`'
+author: Aurora Hofman, Giovanni Rigolino, Paul Rognon
+output:
+  pdf_document:
+    number_sections: yes
+    toc: yes
+    includes:  
+
+params:
+  stanfile: "poison_time_dep.stan"
+  iter: 10000
+  adapt_delta: 0.99
+  max_treedepth: 15
+---
+
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, warning = FALSE, error = FALSE, message = FALSE,
+  tidy.opts = list(width.cutoff = 55), eval = FALSE
+)
+```
+
+```{r, include=FALSE}
+#Reading the data
+data_netherland<- read.csv("data/Death_week_2_17_netherland.csv", sep = ";")
+data_england_wales <- read.csv("data/England_Wales_weekly.csv",sep = ";")
+data_norway<- read.csv("data/Norway_total_death.csv", sep = ";")
+data_france <- read.csv("data/data_france/weekly_deaths_france_week1_16_years2010_2020.csv", header = T, sep = ",")
+data_belgium <- read.csv("data/data_belgium/weekly_deaths_belgium_week1_17_years2009_2020.csv", header = T, sep = ",")
+
+#covid_data
+data_covid <- read.csv("france_belgium_norway.csv",)
+data_covid_england <- read.csv("england_wales_weekly_covid_deaths.csv")
+data_covid_england <- data_covid_england[,-c(1,2)]
+data_covid_england <- c(rep(0,6), data_covid_england)
+```
+
+```{r, include=FALSE}
+#Extracting the data for the Netherlands
+mean_netherland <- as.vector(as.matrix(data_netherland)[,6])
+netherland_2020<-as.vector(as.matrix(data_netherland)[,5])
+```
+
+```{r, include=FALSE}
+#Extracting data England and Wales
+mean_england <- as.vector(as.matrix(data_england_wales)[,12])
+england_2020 <- as.vector(as.matrix(data_england_wales)[,13])
+```
+
+
+```{r, include=FALSE}
+#Extracting the data for Norway
+#data_norway <- data_norway[-17, ]
+data_norway <- data_norway[, -c(8:10)]
+norway_without_20 <- data_norway[,-7]
+average <- rowMeans(norway_without_20)
+data_norway <- cbind(data_norway, average)
+
+mean_norway <- as.vector(as.matrix(data_norway)[,8])
+norway_2020 <- as.vector(as.matrix(data_norway)[,7])
+norway_covid <- as.vector(as.matrix(data_covid)[-18,4])
+```
+
+
+```{r, include=FALSE}
+#Extracting the data of France
+mean_france <- rowMeans(data_france[, c(2:11)])
+data_france <- cbind(data_france, mean_france)
+france_2020 <- as.vector(as.matrix(data_france)[,12])
+france_covid <- as.vector(as.matrix(data_covid)[-c(17,18),2])
+```
+
+```{r, include=FALSE}
+#Extracting the data of Belgium
+mean_belgium <- rowMeans(data_belgium[, c(2:12)])
+data_belgium <- cbind(data_belgium, mean_belgium)
+belgium_2020 <- as.vector(as.matrix(data_belgium)[,13])
+belgium_covid <- as.vector(as.matrix(data_covid)[-18,3])
+```
+
+
+```{r}
+create_list <- function(N, E, O){
+  data_list <-  list(
+  N = N, 
+  E = E,
+  O = O,
+  sigma_a = 0.01,
+  sigma_b = 4,
+  alpha_mu = 0,
+  alpha_sigma = 4,
+  beta_a = -1, 
+  beta_b = 1,
+  sigma_time_mu = 0,
+  sigma_time_sigma= 25
+  )
+  return(data_list)
+}
+```
+
+```{r, include= FALSE}
+data_list_covid_netherland <- create_list( length(mean_netherland),mean_netherland,netherland_2020 )
+data_list_covid_england_wales <- create_list( length(mean_england),mean_england + data_covid_england,england_2020 )
+data_list_covid_norway <- create_list(length(mean_norway), mean_norway + norway_covid, norway_2020)
+data_list_covid_france <- create_list(length(mean_france), as.vector(mean_france + france_covid), france_2020)
+data_list_covid_belgium <- create_list(length(mean_belgium), mean_belgium+belgium_covid, belgium_2020)
+```
+
+
+
+```{r}
+library(rstan)
+risk_netherland <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_netherland, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+risk_england_wales <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_england_wales, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+risk_norway <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_norway, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+risk_france <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_france, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+risk_belgium <- stan(params$stanfile, iter = params$iter, chains = 4,
+  data = data_list_belgium, seed = 1, control = list(adapt_delta = params$adapt_delta, max_treedepth = params$max_treedepth))
+
+```
+
+
+
+```{r}
+params_belgium <- as.data.frame(rstan::extract(risk_belgium, permuted=FALSE))
+names(params_belgium) <- gsub("chain:1.", "", names(params_belgium), fixed = TRUE)
+names(params_belgium) <- gsub("[", ".", names(params_belgium), fixed = TRUE)
+names(params_belgium) <- gsub("]", "", names(params_belgium), fixed = TRUE)
+params_belgium$iter <- 1:2000
+
+par(mar = c(4, 4, 0.5, 0.5))
+plot(params_belgium$iter, log(params_belgium$sigma), col="red", pch=16, cex=0.8,
+     xlab="Iteration", ylab="log(sigma)", ylim=c(-6, 4))
+```
+
+```{r}
+divergent <- get_sampler_params(risk_belgium, inc_warmup=FALSE)[[1]][,'divergent__']
+sum(divergent)/2000
+```
+```{r}
+divergent <- get_sampler_params(risk_belgium, inc_warmup=FALSE)[[1]][,'divergent__']
+params_belgium$divergent <- divergent
+
+div_params_belgium <- params_belgium[params_belgium$divergent == 1,]
+nondiv_params_ncp <- params_ncp80[params_ncp80$divergent == 0,]
+
+par(mar = c(4, 4, 0.5, 0.5))
+plot(nondiv_params_ncp$theta.1, log(nondiv_params_ncp$tau),
+     xlab="theta.1", ylab="log(tau)", xlim=c(-20, 50), ylim=c(-6,4),
+     col=c_dark, pch=16, cex=0.8)
+points(div_params_ncp$theta.1, log(div_params_ncp$tau),
+       col="green", pch=16, cex=0.8)
+```
+
+
+
+
+```{r, include=FALSE}
+####################
+# Helper functions
+####################
+
+#Function for output graphs
+plot_risk <- function(data, country_name){
+  g<- ggplot(data = data, aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+    geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+    geom_line(aes(week, CI_upper), col = "blue", lty = 2) + 
+    geom_hline(yintercept = 1, col = "red")+
+    ggtitle("Relative risk for" , country_name)
+  ggsave(paste0("output_",country_name,".png"))
+  return(g)
+}
+
+# Function for creating the dataframe with thetas and the bounds for the credible interval. 
+
+create_CI_theta_vec <- function(risk_data, N){
+  fit<-summary(risk_data)
+  results <- as.data.frame(fit$summary)
+  
+  CI_upper <- exp(results$`97.5%`[1:N] +results$`97.5%`[(N+1):(2*N)])
+  CI_lower <- exp(results$`2.5%`[1:N] +results$`2.5%`[(N+1):(2*N)])
+
+  theta <- exp(results$mean[1:N] +results$mean[(N+1):(2*N)])
+  week <- seq(1:N)
+  data <- data.frame(week, CI_upper, CI_lower, theta)
+  return(data)
+
+}
+data_france <- create_CI_theta_vec(risk_france,16)
+plot_risk(data_france, 'france')
+
+
+data_norway <- create_CI_theta_vec(risk_norway, 17)
+plot_risk(data_norway, 'norway')
+
+data_belgium <- create_CI_theta_vec(risk_belgium, 17)
+plot_risk(data_belgium, 'belgium')
+
+data_england <- create_CI_theta_vec(risk_england_wales, 17)
+plot_risk(data_england, 'england')
+```
+
+### The Netherlands
+
+```{r}
+library(bayesplot)
+posterior <- as.data.frame(risk_netherland)
+mcmc_trace(risk_belgium, pars = "log_theta_time[3]")
+mcmc_trace(risk_belgium, pars = "log_theta_time[4]")
+mcmc_trace(risk_belgium, pars = "log_theta_time[6]") 
+mcmc_trace(risk_belgium, pars = "sigma") 
+
+```
+
+```{r}
+data_netherland <- create_CI_theta_vec(risk_netherland, length(mean_netherland))
+plot_risk(data_netherland, "Netherland")
+```
+```{r}
+library(tidyverse)
+library(tidyr)
+####################
+# Helper functions
+####################
+extract_simulations <- function(risk_data){
+  sim_1<- rstan::extract(risk_data, "sim[1]")[[1]]
+  sim_2<- rstan::extract(risk_data, "sim[2]")[[1]]
+  sim_3<- rstan::extract(risk_data, "sim[3]")[[1]]
+  sim_4<- rstan::extract(risk_data, "sim[4]")[[1]]
+  sim_5<- rstan::extract(risk_data, "sim[5]")[[1]]
+  sim_6<- rstan::extract(risk_data, "sim[6]")[[1]]
+  sim_7<- rstan::extract(risk_data, "sim[7]")[[1]]
+  sim_8<- rstan::extract(risk_data, "sim[8]")[[1]]
+  sim_9<- rstan::extract(risk_data, "sim[9]")[[1]]
+  sim_10<- rstan::extract(risk_data, "sim[10]")[[1]]
+  sim_11<- rstan::extract(risk_data, "sim[11]")[[1]]
+  sim_12<- rstan::extract(risk_data, "sim[12]")[[1]]
+  sim_13<- rstan::extract(risk_data, "sim[13]")[[1]]
+  sim_14<- rstan::extract(risk_data, "sim[14]")[[1]]
+  sim_15<- rstan::extract(risk_data, "sim[15]")[[1]]
+  sim_16<- rstan::extract(risk_data, "sim[16]")[[1]]
+  posterior_chains <- tibble(sim_1, sim_2, sim_3, sim_4, sim_5, sim_6, sim_7, sim_8, sim_9, sim_10, sim_11, sim_12, sim_13, sim_14, sim_15, sim_16)
+  return(posterior_chains)
+}
+
+posterior_chains <- extract_simulations(risk_belgium)
+posterior_chains_mini <-cbind(t(posterior_chains[1:20,]), belgium_2020)
+```
+
+```{r}
+library(ggplot2)
+
+library(reshape)
+#png("validation.png")
+data <- data.frame(time = seq(1:16), posterior_chains_mini)
+Molten <- melt(data, id.vars = "time")
+g<- ggplot(Molten, aes(x = time, y = value, colour = variable)) + geom_line()
+g
+#dev.off()
+```
+
