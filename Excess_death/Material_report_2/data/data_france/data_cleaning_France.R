@@ -11,7 +11,7 @@ deces_2010 <- deces_2010 %>% select(datedeces) %>%
          date = parse_date_time(datedeces,order="ymd"),
          year=year(date),
          week = week(date)) %>% 
-  filter(year > 2009, week %in% seq(1,16,1))
+  filter(year > 2009, week %in% seq(1,18,1))
 
 # 2011
 deces_2011 <- read_delim("deces-2011.csv", 
@@ -21,7 +21,7 @@ deces_2011 <- deces_2011 %>% select(datedeces) %>%
          date = parse_date_time(datedeces,order="ymd"),
          year=year(date),
          week = week(date)) %>% 
-  filter(year > 2009, week %in% seq(1,16,1))
+  filter(year > 2009, week %in% seq(1,18,1))
 
 # 2012
 deces_2012 <- read_delim("deces-2012.csv", 
@@ -31,7 +31,7 @@ deces_2012 <- deces_2012 %>% select(datedeces) %>%
          date = parse_date_time(datedeces,order="ymd"),
          year=year(date),
          week = week(date)) %>% 
-  filter(year > 2009, week %in% seq(1,16,1))
+  filter(year > 2009, week %in% seq(1,18,1))
 
 # 2013
 deces_2013 <- read_delim("deces-2013.csv", 
@@ -41,7 +41,7 @@ deces_2013 <- deces_2013 %>% select(datedeces) %>%
          date = parse_date_time(datedeces,order="ymd"),
          year=year(date),
          week = week(date)) %>% 
-  filter(year > 2009, week %in% seq(1,16,1))
+  filter(year > 2009, week %in% seq(1,18,1))
 
 # 2014
 deces_2014 <- read_delim("deces-2014.csv", 
@@ -51,7 +51,7 @@ deces_2014 <- deces_2014 %>% select(datedeces) %>%
          date = parse_date_time(datedeces,order="ymd"),
          year=year(date),
          week = week(date)) %>% 
-  filter(year > 2009, week %in% seq(1,16,1))
+  filter(year > 2009, week %in% seq(1,18,1))
 
 # 2015
 deces_2015 <- read_delim("deces-2015.csv", 
@@ -61,7 +61,7 @@ deces_2015 <- deces_2015 %>% select(datedeces) %>%
          date = parse_date_time(datedeces,order="ymd"),
          year=year(date),
          week = week(date)) %>% 
-  filter(year > 2009, week %in% seq(1,16,1))
+  filter(year > 2009, week %in% seq(1,18,1))
 
 # 2016
 deces_2016 <- read_delim("deces-2016.csv", 
@@ -71,7 +71,7 @@ deces_2016 <- deces_2016 %>% select(datedeces) %>%
          date = parse_date_time(datedeces,order="ymd"),
          year=year(date),
          week = week(date)) %>% 
-  filter(year > 2009, week %in% seq(1,16,1))
+  filter(year > 2009, week %in% seq(1,18,1))
 
 # 2017
 deces_2017 <- read_delim("deces-2017.csv", 
@@ -81,7 +81,7 @@ deces_2017 <- deces_2017 %>% select(datedeces) %>%
          date = parse_date_time(datedeces,order="ymd"),
          year=year(date),
          week = week(date)) %>% 
-  filter(year > 2009, week %in% seq(1,16,1))
+  filter(year > 2009, week %in% seq(1,18,1))
 
 # 2018
 deces_2018 <- read_delim("deces-2018.csv", 
@@ -91,7 +91,7 @@ deces_2018 <- deces_2018 %>% select(datedeces) %>%
          date = parse_date_time(datedeces,order="ymd"),
          year=year(date),
          week = week(date)) %>% 
-  filter(year > 2009, week %in% seq(1,16,1))
+  filter(year > 2009, week %in% seq(1,18,1))
 
 # 2019
 deces_2019 <- read_delim("deces-2019.csv", 
@@ -101,7 +101,7 @@ deces_2019 <- deces_2019 %>% select(datedeces) %>%
          date = parse_date_time(datedeces,order="ymd"),
          year=year(date),
          week = week(date)) %>% 
-  filter(year > 2009, week %in% seq(1,16,1))
+  filter(year > 2009, week %in% seq(1,18,1))
 
 
 
@@ -116,7 +116,7 @@ deces_jan2020 <- deces_jan2020 %>% select(datedeces) %>%
          date = parse_date_time(datedeces,order="ymd"),
          year=year(date),
          week = week(date)) %>% 
-  filter(year > 2009, week %in% seq(1,16,1))
+  filter(year > 2009, week %in% seq(1,18,1))
 
 # February
 deces_feb2020 <- read_delim("Deces_2020_M02.csv", 
@@ -126,7 +126,7 @@ deces_feb2020 <- deces_feb2020 %>% select(datedeces) %>%
          date = parse_date_time(datedeces,order="ymd"),
          year=year(date),
          week = week(date)) %>% 
-  filter(year > 2009, week %in% seq(1,16,1))
+  filter(year > 2009, week %in% seq(1,18,1))
 
 # March
 deces_mar2020 <- read_delim("Deces_2020_M03.csv", 
@@ -164,13 +164,18 @@ rm(deces_2010,deces_2011,deces_2012,
 
 # Source 1
 
-data_daily_2018_2020 <-read_delim("2020-05-07_deces_quotidiens_departement_csv.csv",
-                  ";", escape_double = FALSE, trim_ws = TRUE)
+data_daily_2018_2020 <- read_delim("2020-05-22_deces_quotidiens_departement_csv.csv", 
+                                  ";", escape_double = FALSE, trim_ws = TRUE)
+data_daily_2018_2020$Date_evenement <- paste0(data_daily_2018_2020$Date_evenement, "-2020")
+data_daily_2018_2020$Date_evenement <- gsub("avr.","avril",data_daily_2018_2020$Date_evenement)
+
 
 data_daily_2018_2020 <- data_daily_2018_2020 %>%
-  filter(Zone == "France") %>% mutate(date = lubridate::dmy(Date_evenement),
-                                      week = lubridate::week(date)) %>%
-  filter(week < 17, week > 9) %>%
+  filter(Zone == "France") %>% mutate(date = lubridate::dmy(Date_evenement, 
+                                                            locale = Sys.setlocale("LC_TIME", 
+                                                                                   "fr_FR.utf8")),
+                                      week = lubridate::week(date)) %>% 
+filter(week < 19, week > 9) %>%
   mutate(#day_deaths_2018 = c(data_daily_2018_2020$Total_deces_2018[1],diff(Total_deces_2018)),
          #day_deaths_2019 = c(data_daily_2018_2020$Total_deces_2019[1],diff(Total_deces_2019)),
          `2020` = c(data_daily_2018_2020$Total_deces_2020[1],diff(Total_deces_2020))) %>%
@@ -192,6 +197,7 @@ weekly_deces_2010_mar2020_2$`2020` <- c(weekly_deces_2010_mar2020_2$`2020`[1:9],
                                         data_weekly_2018_2020$`2020`)
 
 write_csv(weekly_deces_2010_mar2020_2,
-           "weekly_deaths_france_week1_16_years2010_2020.csv")
+           "weekly_deaths_france_week1_18_years2010_2020.csv")
+
 
 
