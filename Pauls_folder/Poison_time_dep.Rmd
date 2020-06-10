@@ -904,6 +904,8 @@ save.image("data_report.Rdata")
 
 ## Inferential results
 
+The countries will be evaluated one by one starting with England and Wales. 
+
 <!-- TBD -->
 
 <!-- ```{r} -->
@@ -945,19 +947,26 @@ plot_risk <- function(data, country_name){
 
 
 ### England and Wales
-```{r, eval = FALSE}
+```{r, eval = FALSE, include=FALSE}
 data_england_wales <- create_CI_theta_vec(risk_england_wales, length(mean_england))
 plot_risk(data_england_wales, "England and Wales")
 ```
 
-```{r, eval = FALSE}
+```{r, eval = FALSE, include=FALSE}
 data_england_wales_covid <- create_CI_theta_vec(risk_england_wales_covid, length(mean_england))
 plot_risk(data_england_wales_covid, "England and Wales")
 ```
 
-
-```{r, eval = TRUE, fig.cap="\\label{fig:fig4} Negative binomial model estimates for England and Wales",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+In Fig.\ref{fig:fig11} one can see the evolution if the estimated values of the risk for England and Wales. One can clearly see that there is a dramatic increase in risk as the covid-19 pandemic evolves. 
+```{r, eval = TRUE, fig.cap="\\label{fig:fig11} Poisson model estimates for England and Wales",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
  knitr::include_graphics("output_England and Wales.png")
+```
+
+
+
+
+```{r, eval = TRUE, fig.cap="\\label{fig:fig12} Poisson model estimates for England and Wales including covid deaths",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+ knitr::include_graphics("output_England_and_Wales_covid.png")
 ```
 ### Norway
 
