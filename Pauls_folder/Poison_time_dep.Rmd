@@ -77,6 +77,9 @@ The reported COVID deaths for Norway, Belgium and France have been extracted fro
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 SUMMARY AND TODO:
 
+
+OBSOBS!! THERE IS AN ERROR IN THE BELGIUM COVID SIMULATION. USING THE DATASET WITHOUT COVID. 
+
 In Fig.\ref{fig:fig1} try and fixs the legends (matching of colour and year) It seems like 2020 has been labled as 2019. Also for england & wales some years are missing. 
 
 
@@ -747,9 +750,9 @@ plot_validation <- function(posterior_chain, deaths_2020, lim=14){
 ```
 
 
-## Excess deaths
+### Excess deaths
 
-In Fig.\ref{fig:fig9}, \ref{fig:fig9a}, \ref{fig:fig9b}, \ref{fig:fig9c} we plot the 2020 deaths along with 10 simulations of posterior predictive distribution and the 5% and 95% quantiles computed on the posterior predictive for each week. We see that the 2020 deaths data falls well between the quantiles and in the mid of the simulated trajectories. In Table \ref{tab:tab5} and \ref{tab:tab6}, we compare the 2020 deaths to the median of the simulations of the posterior predictive for each week. We see that for all the countries, the two values are very close.
+In Fig.\ref{fig:fig9}, \ref{fig:fig9b}, \ref{fig:fig9c} and  \ref{fig:fig9d} we plot the 2020 deaths along with 10 simulations of posterior predictive distribution and the 5% and 95% quantiles computed on the posterior predictive for each week. We see that the 2020 deaths data falls well between the quantiles and in the mid of the simulated trajectories. In Table \ref{tab:tab5} and \ref{tab:tab6}, we compare the 2020 deaths to the median of the simulations of the posterior predictive for each week. We see that for all the countries, the two values are very close.
 
 ```{r}
 posterior_chains_england <- extract_simulations(risk_england_wales)
@@ -823,7 +826,7 @@ kable(df2, "latex",
 
 ### Excess deaths on top of the reported COVID deaths
 
-In Fig.\ref{fig:fig10}, \ref{fig:fig10a}, \ref{fig:fig10b}, \ref{fig:fig10c} we plot again the 2020 deaths along with 10 simulations of posterior predictive distribution and the 5% and 95% quantiles computed on the posterior predictive for each week. We see that the 2020 deaths data falls well between the quantiles and in the mid of the simulated trajectories. In Table \ref{tab:tab7} and \ref{tab:tab8}, we compare the 2020 deaths to the median of the simulations of the posterior predictive for each week. We see that for all the countries, the two values are very close.
+In Fig.\ref{fig:fig10}, \ref{fig:fig10b}, \ref{fig:fig10c} and \ref{fig:fig10d} we plot again the 2020 deaths along with 10 simulations of posterior predictive distribution and the 5% and 95% quantiles computed on the posterior predictive for each week. We see that the 2020 deaths data falls well between the quantiles and in the mid of the simulated trajectories. In Table \ref{tab:tab7} and \ref{tab:tab8}, we compare the 2020 deaths to the median of the simulations of the posterior predictive for each week. We see that for all the countries, the two values are very close.
 
 ```{r}
 posterior_chains_england_covid <- extract_simulations(risk_england_wales_covid)
@@ -859,7 +862,7 @@ val_plot_belgium_covid
 ```
 
 
-```{r, echo = FALSE, eval = TRUE, fig.cap="\\label{fig:fig10c} Validation of excess deaths on top of the reported COVID deaths modelcontinued"}
+```{r, echo = FALSE, eval = TRUE, fig.cap="\\label{fig:fig10d} Validation of excess deaths on top of the reported COVID deaths modelcontinued"}
 val_plot_france_covid
 ```
 
@@ -915,77 +918,105 @@ save.image("data_report.Rdata")
 <!-- grid.arrange(p1,p2,p3,p4,ncol=2) -->
 <!-- ``` -->
 
-<!-- ```{r} -->
-<!-- create_CI_theta_vec <- function(risk_data, N){ -->
-<!--   fit<-summary(risk_data) -->
-<!--   results <- as.data.frame(fit$summary) -->
+```{r, include=FALSE}
+create_CI_theta_vec <- function(risk_data, N){
+  fit<-summary(risk_data)
+  results <- as.data.frame(fit$summary)
 
-<!--   CI_upper <- exp(results$`97.5%`[1:N] + results$`97.5%`[(N+1):(2*N)]) -->
-<!--   CI_lower <- exp(results$`2.5%`[1:N] +results$`2.5%`[(N+1):(2*N)]) -->
+  CI_upper <- exp(results$`97.5%`[1:N] + results$`97.5%`[(N+1):(2*N)])
+  CI_lower <- exp(results$`2.5%`[1:N] +results$`2.5%`[(N+1):(2*N)])
 
-<!--   theta <- exp(results$mean[1:N] +results$mean[(N+1):(2*N)]) -->
-<!--   week <- seq(1:N) -->
-<!--   data <- data.frame(week, CI_upper, CI_lower, theta) -->
-<!--   return(data) -->
+  theta <- exp(results$mean[1:N] +results$mean[(N+1):(2*N)])
+  week <- seq(1:N)
+  data <- data.frame(week, CI_upper, CI_lower, theta)
+  return(data)
 
-<!-- } -->
-<!-- plot_risk <- function(data, country_name){ -->
-<!--   g<- ggplot(data = data, aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) + -->
-<!--     geom_line(aes(week, CI_lower), col = "blue", lty = 2) + -->
-<!--     geom_line(aes(week, CI_upper), col = "blue", lty = 2) +  -->
-<!--     geom_hline(yintercept = 1, col = "red")+ -->
-<!--     ggtitle(country_name) -->
-<!--   ggsave(paste0("output_",country_name,".png")) -->
-<!--   return(g) -->
-<!-- } -->
-<!-- ``` -->
-
-
-<!-- ### England and Wales -->
-<!-- ```{r} -->
-<!-- data_england_wales <- create_CI_theta_vec(risk_england_wales, length(mean_england)) -->
-<!-- plot_risk(data_england_wales, "England and Wales") -->
-<!-- ``` -->
-
-<!-- ```{r, eval = TRUE, fig.cap="\\label{fig:fig4} Negative binomial model estimates for England and Wales",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"} -->
-<!-- knitr::include_graphics("output_from_Report_1/output_England and Wales.png") -->
-<!-- ``` -->
-<!-- ### Norway -->
-
-<!-- ```{r} -->
-<!-- data_norway <- create_CI_theta_vec(risk_norway, length(mean_norway)) -->
-<!-- plot_risk(data_norway, "Norway") -->
-<!-- ``` -->
-
-<!-- ```{r, eval = TRUE, fig.cap="\\label{fig:fig6} Negative binomial model estimates for Norway",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"} -->
-<!-- knitr::include_graphics("output_from_Report_1/output_Norway.png") -->
-<!-- ``` -->
-
-<!-- ### France -->
-<!-- ```{r} -->
-<!-- data_france <- create_CI_theta_vec(risk_france, length(mean_france)) -->
-<!-- plot_risk(data_france, "France") -->
-<!-- ``` -->
-
-<!-- ```{r, eval = TRUE, fig.cap="\\label{fig:fig9} Negative binomial model estimates for France",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"} -->
-<!-- knitr::include_graphics("output_from_Report_1/output_France.png") -->
-<!-- ``` -->
-<!-- ### Belgium -->
-<!-- ```{r} -->
-<!-- data_belgium <- create_CI_theta_vec(risk_belgium, length(mean_belgium)) -->
-<!-- plot_risk(data_belgium, "Belgium") -->
-<!-- ``` -->
-
-<!-- ```{r, eval = TRUE, fig.cap="\\label{fig:fig10} Negative binomial model estimates for Belgium",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"} -->
-<!-- knitr::include_graphics("output_from_Report_1/output_England and Wales.png") -->
-<!-- ``` -->
+}
+plot_risk <- function(data, country_name){
+  g<- ggplot(data = data, aes(x = week, y = theta)) + geom_point() + geom_line(lty = 2) +
+    geom_line(aes(week, CI_lower), col = "blue", lty = 2) +
+    geom_line(aes(week, CI_upper), col = "blue", lty = 2) +
+    geom_hline(yintercept = 1, col = "red")+
+    ggtitle(country_name)
+  ggsave(paste0("output_",country_name,".png"))
+  return(g)
+}
+```
 
 
-<!-- ```{r} -->
-<!-- # Save output -->
-<!-- save.image("excess_deaths_output.Rdata") -->
-<!-- ``` -->
+### England and Wales
+```{r, eval = FALSE}
+data_england_wales <- create_CI_theta_vec(risk_england_wales, length(mean_england))
+plot_risk(data_england_wales, "England and Wales")
+```
 
+```{r, eval = FALSE}
+data_england_wales_covid <- create_CI_theta_vec(risk_england_wales_covid, length(mean_england))
+plot_risk(data_england_wales_covid, "England and Wales")
+```
+
+
+```{r, eval = TRUE, fig.cap="\\label{fig:fig4} Negative binomial model estimates for England and Wales",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+ knitr::include_graphics("output_England and Wales.png")
+```
+### Norway
+
+```{r}
+data_norway <- create_CI_theta_vec(risk_norway, length(mean_norway))
+plot_risk(data_norway, "Norway")
+```
+```{r, eval = FALSE}
+data_norway_covid <- create_CI_theta_vec(risk_norway_covid, length(mean_england))
+plot_risk(data_norway_covid, "Norway")
+```
+```{r, eval = TRUE, fig.cap="\\label{fig:fig6} Negative binomial model estimates for Norway",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_Norway.png")
+```
+
+### France
+```{r}
+data_france <- create_CI_theta_vec(risk_france, length(mean_france))
+plot_risk(data_france, "France")
+```
+```{r}
+data_france_covid <- create_CI_theta_vec(risk_france_covid, length(mean_france))
+plot_risk(data_france_covid, "France")
+```
+```{r, eval = TRUE, fig.cap="\\label{fig:fig9} Negative binomial model estimates for France",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_France.png")
+```
+### Belgium
+```{r}
+data_belgium <- create_CI_theta_vec(risk_belgium, length(mean_belgium))
+plot_risk(data_belgium, "Belgium")
+```
+```{r}
+data_belgium_covid <- create_CI_theta_vec(risk_belgium_covid, length(mean_belgium))
+plot_risk(data_belgium_covid, "Belgium")
+```
+```{r, eval = TRUE, fig.cap="\\label{fig:fig10} Negative binomial model estimates for Belgium",out.extra = "", fig.pos = 'h!', fig.align="center", out.height="50%"}
+knitr::include_graphics("output_Belgium.png")
+```
+
+
+```{r}
+# Save output
+save.image("excess_deaths_output.Rdata")
+```
+
+
+### With Covid
+
+```{r}
+data_norway_covid <- create_CI_theta_vec(risk_norway_covid, length(mean_norway))
+plot_risk(data_norway_covid, "Norway")
+
+```
+```{r}
+data_belgium_covid <- create_CI_theta_vec(risk_belgium_covid, length(mean_belgium))
+plot_risk(data_belgium_covid, "Belgium")
+
+```
 
 # Conclusion
 
