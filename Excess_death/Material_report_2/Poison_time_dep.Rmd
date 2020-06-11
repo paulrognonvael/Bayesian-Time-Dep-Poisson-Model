@@ -69,7 +69,7 @@ Every European state has an established monitoring system of death of nationals,
 
 * England and Wales: years 2010 to 2020 [9]
 
-We picked those countries for different reasons: Belgium for its peculiar death count methodology, France and England and Wales because they are among the most affected countries and Norway because it did not have a large outbreak and therefore offers a good benchmark. The data have been retrieved from the national statistic institutes of the respective countries. For each country the data were transformed to a similar structure than can be visualized in Table \ref{tab:tab1}. 
+We picked those countries for different reasons: Belgium for its peculiar death counting methodology, France and England and Wales because they are among the most affected countries and Norway because it did not have a large outbreak and therefore offers a good benchmark. The data have been retrieved from the national statistic institutes of the respective countries. For each country the data were transformed to a similar structure as is visualized in Table \ref{tab:tab1}. 
 
 The reported COVID-19 deaths for Norway, Belgium and France have been extracted from the Center for Systems Science and Engineering's repository at John Hopkins University's (JHU) Whiting School of Engineering [1]. The reported deaths for England and Wales comes from the Office of National Statistics (ONS) [9] as JHU did not have the count split by nations of the United Kingdom. However, we note that the JHU registered 28 446 COVID-19 deaths for the United Kingdom in week 18 [1], while ONS registered 36 595 [9]. The COVID-19 deaths figures for England and Wales are therefore more pessimistic than those of the other countries considered here.
 
@@ -79,8 +79,8 @@ The reported COVID-19 deaths for Norway, Belgium and France have been extracted 
 ## loading weekly deaths data
 data_england_wales <- read.csv("data/England_Wales_weekly.csv", sep = ",")
 data_norway <- read.csv("data/Norway_total_death.csv", sep = ",")
-data_france <- read.csv("data/data_france/weekly_deaths_france_week1_18_years2010_2020.csv", header = T, sep = ",")
-data_belgium <- read.csv("data/data_belgium/weekly_deaths_belgium_week1_18_years2009_2020.csv", header = T, sep = ",")
+data_france <- read.csv("data/weekly_deaths_france_week1_18_years2010_2020.csv", header = T, sep = ",")
+data_belgium <- read.csv("data/weekly_deaths_belgium_week1_18_years2009_2020.csv", header = T, sep = ",")
 
 ## covid_data
 data_covid <- read_csv("data/time_series_covid19_deaths_global.csv",
@@ -152,12 +152,11 @@ kable(df, "latex",
   )
 ```
 
-
 ## Visualization
 
 ### Weekly deaths
 
-Fig.\ref{fig:fig1} shows the weekly deaths from weeks 1 to 18 for each of the countries and each of the years. We observe several common patterns across countries. Firstly, they all show a downward trend with larger numbers of deaths in the first weeks of the year than in spring. Secondly, there is noise and peaks around this trend with some years being more deadly than others. Earlier weeks are more subject to outbreaks of flu and other winter diseases than later weeks. There is no trough though, the mortality can increase sharply but cannot decrease too much. Finally, most countries have a large peak between weeks 10 and 17 in 2020 which clearly stands out from the other years. On the contrary, Norway shows no peak.
+Fig.\ref{fig:fig1} shows the weekly deaths from weeks 1 to 18 for each of the countries and each of the years. We observe several common patterns across countries. Firstly, they all show a downward trend with larger numbers of deaths in the first weeks of the year than during spring. Secondly, there is noise and peaks around this trend with some years being more deadly than others. Earlier weeks are more subject to outbreaks of flu and other winter diseases than later weeks. We rarely observe dips in the series meaning the mortality has a higher tendency of increaced mortality than decreased mortality. This could be explained by a lower bound on mortality determined by the population age structure. Finally, most countries have a large peak between weeks 10 and 17 in 2020 which clearly stands out from the other years. On the contrary, Norway shows no peak.
 
 ```{r, echo = FALSE, eval = TRUE}
 ### Exploratory data analysis
@@ -325,7 +324,7 @@ The priors and hyperpriors for the Bayesian model do not change.
 
 ### Choice of priors
 
-Our choice of priors and hyperpriors has been driven by prior knowledge or lack of. First of all, we choose a normal distribution for $\log(\theta_i)$ with mean 0 and standard deviation the hyperparameter $\sigma$. As a result $\theta_i$ is lognormally distributed and centered at 1, the expected value for the relative risk. The lognormal distribution is particularly suited for several reasons. It has a positive support and we know $\theta_i$ must be positive. The lognormal distribution has also a positive skew, so the median of $\theta_i$ is 1 but the mean is larger and very large values are possible. It is important to have such heavy right tail because we know the risk can increase largely when large scale deadly events occur. On the contrary, we do not need a heavy left tail because the mortality is floored by the natural mortality determined by the population demographics. For the time dependent component of relative risk, we make the same distributional assumption where the center of the distribution is not 1 anymore but the autoregression function estimate $\alpha+\beta\theta_{t,i-1}$, that represents the dependency on previous value.
+Our choice of priors and hyperpriors has been driven by prior knowledge, or lack of it. First of all, we choose a normal distribution for $\log(\theta_i)$ with mean 0 and standard deviation the hyperparameter $\sigma$. As a result $\theta_i$ is lognormally distributed and centered at 1, the expected value for the relative risk. The lognormal distribution is particularly suited for several reasons. It has a positive support and we know $\theta_i$ must be positive. The lognormal distribution has also a positive skew, so the median of $\theta_i$ is 1 but the mean is larger and very large values are possible. It is important to have such heavy right tail because we know the risk can increase largely when large scale deadly events occur. On the contrary, we do not need a heavy left tail because the mortality is floored by the natural mortality determined by the population demographics. For the time dependent component of relative risk, we make the same distributional assumption where the center of the distribution is not 1 anymore but the autoregression function estimate $\alpha+\beta\theta_{t,i-1}$, that represents the dependency on previous value.
 
 #### Choice of hyperpriors
 
@@ -497,7 +496,11 @@ grid.arrange(plots3[[1]], plots3[[2]], plots3[[3]], plots3[[4]], ncol = 2)
 # Results
 
 ```{r}
-### Excess mortality stan
+### STAN runs
+
+# run in Google Colab with attached notebooks
+
+## Excess mortality stan
 
 # params lists
 create_list <- function(N, E, O) {
@@ -550,7 +553,7 @@ risk_belgium <- stan(params$stanfile,
 
 
 ```{r}
-### Excess mortality on top of the reported COVID-19 deaths stan
+## Excess mortality on top of the reported COVID-19 deaths stan
 # params lists
 
 data_list_england_wales_covid <- create_list(
@@ -607,10 +610,13 @@ risk_belgium_covid <- stan(params$stanfile,
 
 ### Excess deaths
     
-We check the convergence of each of our four models (one per country) by checking the Rhat values for all parameters, plotting the chains traces and autocorrelation in chains. Table \ref{tab:tab3} gathers the maximum Rhat value in each model. All the values are below 1.01 indicating satisfactory convergence. In Fig.\ref{fig:fig5} and \ref{fig:fig6} we plot the chain traces and autocorrelation plots for four parameters in the England and Wales model as examples. We can see the chains mix well. There is a bit of autocorrelation in the plots of log_theta[16] but it is small and there is no autocorrelation for the other parameters.
+We check the convergence of each of our four models (one per country) by checking the Rhat values for all parameters, plotting the chains traces and autocorrelation in chains. Table \ref{tab:tab3} gathers the maximum Rhat value in each model. All the values are below 1.01 indicating satisfactory convergence. In Fig.\ref{fig:fig5} and Fig. \ref{fig:fig6} we plot the chain traces and autocorrelation plots for four parameters in the England and Wales model as examples. We can see the chains mix well. There is a bit of autocorrelation in the plots of log_theta[16] but it is small and there is no autocorrelation for the other parameters.
 
 ```{r,eval=FALSE}
-load("stan_output.Rdata")
+### Convergence check 
+
+## Excess deaths model
+
 print(risk_england_wales)
 print(risk_belgium)
 print(risk_france)
@@ -685,10 +691,11 @@ mcmc_trace(risk_france,
 
 ### Excess deaths on top of the reported COVID-19 deaths
     
-We repeat the procedure for the model on excess deaths on top of the reported COVID-19 deaths. We check again the convergence of each of our four models (one per country) by checking the Rhat values for all parameters, plotting the chains traces and autocorrelations in chains. Table \ref{tab:tab4} gathers the maximum Rhat value in each model. All the values are below 1.02 indicating satisfactory convergence. In Fig.\ref{fig:fig7} and \ref{fig:fig6} we plot the chain traces and autocorrelation plots for four parameters in the Belgium model as examples. We can see the chains mix well. There is a bit of autocorrelation in the plots of log_theta[1] but it is small and there is no autocorrelation for the other parameters.
+We repeat the procedure for the model on excess deaths on top of the reported COVID-19 deaths. We check again the convergence of each of our four models (one per country) by checking the Rhat values for all parameters, plotting the chains traces and autocorrelations in chains. Table \ref{tab:tab4} gathers the maximum Rhat value in each model. All the values are below 1.02 indicating satisfactory convergence. In Fig.\ref{fig:fig7} and \ref{fig:fig8} we plot the chain traces and autocorrelation plots for four parameters in the Belgium model as examples. We can see the chains mix well. There is a bit of autocorrelation in the plots of log_theta[17] and beta but only in one chain and there is no autocorrelation for the other parameters.
 
 ```{r,eval=FALSE}
-load("stan_output_covid.Rdata")
+## Excess deaths on top of COVID reported deaths model
+
 print(risk_england_wales_covid)
 print(risk_belgium_covid)
 print(risk_france_covid)
@@ -762,9 +769,11 @@ mcmc_trace(risk_france_covid,
 
 ## Validation
 
-To validate our model we need to compare statistics from the posterior distribution to actual values. The only actual data with have is the number of deaths per week in 2020. We then validate our model working on the posterior predictive distribution of the number of deaths. For each country and for each week, we compare the 2020 value to the median and quantiles 5% and 95% of our posterior predictive distribution. In this validation procedure, a good model would be a model for which the 2020 data falls between the two quantiles for all weeks and close to the median. The 5% and 95% quantiles should also be reasonable values, less than 3 times the number of observed deaths and more than a third of it.
+To validate our model we need to compare statistics from the posterior distribution to actual values. The only actual data we have is the number of deaths per week in 2020. We then validate our model working on the posterior predictive distribution of the number of deaths. For each country and for each week, we compare the 2020 value to the median and quantiles 5% and 95% of our posterior predictive distribution. In this validation procedure, a good model would be a model for which the 2020 data falls between the two quantiles for all weeks and close to the median. The 5% and 95% quantiles should also be reasonable values, less than 3 times the number of observed deaths and more than a third of it.
 
 ```{r}
+### Model validation
+
 # function for extracting simulated data
 extract_simulations <- function(risk_data) {
   sim_1 <- rstan::extract(risk_data, "sim[1]")[[1]]
@@ -834,11 +843,13 @@ plot_validation <- function(posterior_chain, deaths_2020, lim = 14) {
 ```
 
 
-## Excess deaths
+### Excess deaths
 
-In Fig.\ref{fig:fig9} and Fig.\ref{fig:fig9b} we plot, for England and Wales and Norway, the 2020 deaths along with 10 of the 6500 simulations of the posterior predictive distribution and the 5% and 95% quantiles computed on the simulated posterior predictive distribution for each week.The same plots are available in the Annex for Belgium and France. We find that, for all the countries, the 2020 deaths data fall well between the quantiles and in the mid of the simulated trajectories. The quantile values are also reasonable as per the criteria described before, maybe even too close to the actual values. In the Annex Tables {tab:tab4} and \ref{tab:tab5} compare the 2020 deaths to the median of the simulations of the posterior predictive for each week. We find that for all the countries, the two values are very close.
+In Fig.\ref{fig:fig9} and Fig.\ref{fig:fig9b} we plot, for England and Wales and Norway, the 2020 deaths along with 10 of the 6500 simulations of the posterior predictive distribution and the 5% and 95% quantiles computed on the simulated posterior predictive distribution for each week.The same plots are available in the Annex for Belgium and France. We find that, for all the countries, the 2020 deaths data fall well between the quantiles and in the mid of the simulated trajectories. The quantile values are also reasonable related to the criteria described before, maybe even too close to the actual values. In the Annex Tables \ref{tab:tab5} and \ref{tab:tab6} the 2020 deaths are compared to the median of the simulations of the posterior predictive for each week. We find that for all the countries, the two values are very close.
 
 ```{r}
+## Excess deaths model
+
 posterior_chains_england <- extract_simulations(risk_england_wales)
 posterior_chains_norway <- extract_simulations(risk_norway)
 posterior_chains_france <- extract_simulations(risk_france)
@@ -867,9 +878,10 @@ val_plot_norway
 
 ### Excess deaths on top of the reported COVID-19 deaths
 
-We apply the same procedure to the model for excess deaths on top of the reported COVID-19 deaths. In Fig.\ref{fig:fig10c} and \ref{fig:fig10d} we plot, for Belgium and France, the 2020 deaths along with 10 simulations of the 6500 simulations of the posterior predictive distribution and the 5% and 95% quantiles computed on the posterior predictive for each week. The same plots are available for England and Wales and Norway in the Annex. We find that the 2020 deaths data falls well between the quantiles and in the mid of the simulated trajectories. The quantile values are also reasonable as per the criteria described before, maybe even too close to the actual value. In the Annex, in Tables \ref{tab:tab6}, we compare the 2020 deaths to the median of the simulations of the posterior predictive for each week. We see that for all the countries, the two values are very close.
+We apply the same procedure to the model for excess deaths on top of the reported COVID-19 deaths. In Fig.\ref{fig:fig10c} and Fig. \ref{fig:fig10d} we plot, for Belgium and France, the 2020 deaths along with 10 simulations of the 6500 simulations of the posterior predictive distribution and the 5% and 95% quantiles computed on the posterior predictive for each week. The same plots are available for England and Wales and Norway in the Annex. We reach the same conclusions as for the excess deaths model above: 2020 deaths data fall well between the quantiles, quantile values are reasonable given the criteria described before. In the Annex, in Tables \ref{tab:tab7} and \ref{tab:tab8}, we compare the 2020 deaths to the median of the simulations of the posterior predictive for each week and again we observe that for all the countries the two values are very close.
 
 ```{r}
+## Excess deaths model on top of the reported COVID-19 deaths
 posterior_chains_england_covid <- extract_simulations(risk_england_wales_covid)
 posterior_chains_norway_covid <- extract_simulations(risk_norway_covid)
 posterior_chains_france_covid <- extract_simulations(risk_france_covid)
@@ -901,6 +913,9 @@ val_plot_france_covid
 Now that we have confirmed the convergence and validity of our model, we are ready to provide estimates of the total relative risk $\gamma$ for every week in every country.
 
 ```{r,eval=FALSE}
+### Inference
+
+# Posterior distribution of selected parameters
 p1 <- mcmc_areas(risk_england_wales,
   prob = 0.90,
   pars = c("log_theta[1]", "log_theta_time[13]", "log_theta_time[14]", "log_theta_time[18]")
@@ -921,6 +936,7 @@ grid.arrange(p1, p2, p3, p4, ncol = 2)
 ```
 
 ```{r}
+# helper functions for extracting relative risk results
 create_CI_theta_vec <- function(risk_data, N) {
   fit <- summary(risk_data)
   results <- as.data.frame(fit$summary)
@@ -954,6 +970,7 @@ plot_risk <- function(data, country_name) {
 In Fig.\ref{fig:fig11} we plot the relative risk point estimates (mean) as well as their 95% credible intervals for the excess deaths models. We find that for England and Wales, France and Belgium we have several weeks for which the relative risk is estimated well above 1 and with a probability of being above 1 superior to 95%. Those weeks are weeks 12 to 17 for France and Belgium and 14 to 18 for England & Wales. Before those periods, the relative risk is very close to one and the 95% credible intervals do not exclude a neutral risk of 1. For Norway, all the relative risks are estimated close to 1 and 95% credible intervals exclude a neutral risk of 1 in none of the weeks considered.
 
 ```{r, echo = FALSE, eval = TRUE, fig.cap="\\label{fig:fig11} Total relative risk estimates in excess deaths models"}
+## Relative risk in excess deaths model
 data_england_wales <- create_CI_theta_vec(risk_england_wales, length(mean_england))
 risk1 <- plot_risk(data_england_wales, "England and Wales")
 
@@ -971,9 +988,11 @@ grid.arrange(risk1, risk2, risk3, risk4, ncol = 2)
 
 ### Excess deaths on top of the reported COVID-19 deaths
 
-In Fig.\ref{fig:fig12} we plot the point estimates  (mean) of the relative risk for excess deaths on top of the reported COVID-19 deaths and their 95% credible intervals. We find that in all the countries but Norway, there are weeks with relative risk is estimated well above 1 and with a probability of being above 1 superior to 95%. Those weeks are weeks 12 and 13 in France, 12 to 14 in Belgium and 13 to 18 in England & Wales. For Norway, all the relative risks are estimated close to 1 and 95% credible intervals exclude a neutral risk of 1 in none of the weeks considered. In Belgium and France the relative risk is estimated below 1 for weeks 15 to 18.
+In Fig.\ref{fig:fig12} we plot the point estimates  (mean) of the relative risk for excess deaths on top of the reported COVID-19 deaths and their 95% credible intervals. We find that in all the countries but Norway, there are weeks where the relative risk is estimated well above 1 and with a probability of being above 1 superior to 95%. Those weeks are weeks 12 and 13 in France, 12 to 14 in Belgium and 13 to 18 in England & Wales. For Norway, all the relative risks are estimated close to 1 and 95% credible intervals exclude a neutral risk of 1 in none of the weeks considered. In Belgium and France the relative risk is estimated below 1 for weeks 15 to 18.
 
 ```{r, echo = FALSE, eval = TRUE, fig.cap="\\label{fig:fig12} Total relative risk estimates in models for excess deaths on top of the reported COVID-19 deaths"}
+## Relative risk in excess deaths on top of COVID deaths model
+
 data_england_wales <- create_CI_theta_vec(risk_england_wales_covid, length(mean_england))
 risk1_covid <- plot_risk(data_england_wales, "England and Wales")
 
@@ -989,9 +1008,10 @@ risk4_covid <- plot_risk(data_belgium, "Belgium")
 grid.arrange(risk1_covid, risk2_covid, risk3_covid, risk4_covid, ncol = 2)
 ```
 
-With our model we can use the posterior predictive distribution of the number of deaths to provide an estimate of the excess deaths on top of the expected number of deaths plus the reported COVID-19 deaths. In In Fig.\ref{fig:fig13a} to \ref{fig:fig13d} we plot a point estimate (median) and 95% credible interval for the number of deaths and compare it to the expected number of deaths plus the reported COVID-19 death. In England and Wales, from week 11 to 18, the number of deaths is estimated well above the expected number of deaths plus the reported COVID-19 death, with a probability of being superior larger than 95%. The same occurs for weeks 12 to 14 in Belgium and 11 to 13 in France. In both countries, for the weeks after, the estimate is lower than the to the expected number of deaths plus the reported COVID-19 death. In Norway, all along the time span considered, the expected number of deaths plus the reported COVID-19 death falls with the 95% credible interval for the number of deaths.
+With our model we can use the posterior predictive distribution of the number of deaths to provide an estimate of the excess deaths on top of the expected number of deaths plus the reported COVID-19 deaths. In In Fig.\ref{fig:fig13a} to \ref{fig:fig13d} we plot a point estimate (median) and 95% credible interval for the number of deaths and compare it to the expected number of deaths plus the reported COVID-19 death. In England and Wales, from week 11 to 18, the number of deaths is estimated well above the expected number of deaths plus the reported COVID-19 death, with a probability of being superior larger than 95%. The same occurs for weeks 12 to 14 in Belgium and 11 to 13 in France. In both countries, for the weeks after, the estimate is lower than the expected number of deaths plus the reported COVID-19 death. In Norway, all along the time span considered, the expected number of deaths plus the reported COVID-19 death falls within the 95% credible interval for the number of deaths.
 
 ```{r}
+# function to plot posterior pred outputs for number of deaths
 plot_excessdeaths <- function(posterior_chain, mean_plus_covid, lim = 14) {
   set.seed(43)
   df0 <- posterior_chain %>% pivot_longer(cols = starts_with("sim"), names_to = "week")
@@ -1053,6 +1073,7 @@ excess_plot_norway_covid
 ```
 
 ```{r}
+# Total excess of deaths on top of covid reported deaths
 df_england <- plot_excessdeaths(posterior_chains_england_covid, mean_england + england_covid, lim = 14)$comp
 df_england <- df_england %>%
   mutate(
@@ -1096,7 +1117,7 @@ df_france <- df_france %>%
   )
 ```
 
-Finally in Table \ref{tab:tab7}, we compute estimates of the total excess deaths on top of the expected number of deaths plus the reported COVID-19 deaths for Belgium, France and England and Wales, as well as a 95% credible interval. To do so, we sum the weekly estimates of excess deaths over the outbreak weeks for each country: 11 to 18 for France and England and Wales and 12 to 18 for Belgium. We find positive point estimates for all the countries. However, for Belgium the 95% credible interval includes null excess deaths and negative values. The point estimate of excess deaths represents 47% of reported COVID-19 deaths for England and Wales, 11% for France and 7% for Belgium.
+Finally in Table \ref{tab:tab9}, we compute estimates of the total excess deaths on top of the expected number of deaths plus the reported COVID-19 deaths for Belgium, France and England and Wales, as well as a 95% credible interval. To do so, we sum the weekly estimates of excess deaths over the outbreak weeks for each country: 11 to 18 for France and England and Wales and 12 to 18 for Belgium. We find positive point estimates for all the countries. However, for Belgium the 95% credible interval includes null excess deaths and negative values. The point estimate of excess deaths represents 47% of reported COVID-19 deaths for England and Wales, 11% for France and 7% for Belgium.
 
 ```{r}
 df_excess <- rbind(df_england, df_belgium, df_france)
@@ -1116,7 +1137,7 @@ kable(df_excess, "latex",
   align = "c",
   digit = 0,
   col.names = c("Country", "Excess Q5%", "Excess Median", "Excess Q95%", "Reported COVID", "Difference %"),
-  caption = "\\label{tab:tab7} Total excess deaths"
+  caption = "\\label{tab:tab9} Total excess deaths"
 ) %>%
   kable_styling(
     latex_options = c("hold_position", "condensed")
@@ -1131,7 +1152,7 @@ save.image("data_report.Rdata")
 
 # Conclusion
 
-Our results show that in France, Belgium and England and Wales there have been several weeks of higher than usual mortality in March and April 2020. It is not the case in Norway. We also find excess deaths on top of the expected number of deaths and the reported COVID-19 deaths in France and England and Wales. The reported COVID-19 deaths do not explain entirely the surge in deaths observed in those months. This is particularly true in England and Wales where the excess is particularly large, despite COVID-19 deaths figures for the country being more pessimistic than those of the other countries considered. On the contrary, Belgium has a small excess in deaths and reported COVID-19 explain well the observed surge in deaths.
+Our results show that in France, Belgium and England and Wales there have been several weeks of higher than usual mortality in March and April 2020. This is not the case in Norway. We also find excess deaths on top of the expected number of deaths and the reported COVID-19 deaths in France and England and Wales. The reported COVID-19 deaths do not explain entirely the surge in deaths observed in those months. This is particularly true in England and Wales where the excess is particularly large, despite COVID-19 deaths figures for the country being more pessimistic than those of the other countries considered. On the contrary, Belgium has a small excess in deaths and reported COVID-19 explain well the observed surge in deaths.
 
 These results suggest an under reporting of pandemics-related deaths in England & Wales and in France and a more accurate reporting in Belgium. However, further development of the methodology used here and of the scope of countries and weeks could help provide stronger evidence. In particular, we only considered data reported up to week 18 but the outbreak had not yet ended in England and Wales and later adjustments to COVID-19 related deaths were made in many countries. Adding more countries and integrating them all in a single hierarchical model could also help to obtain a fairer estimate of the relative risk. Another interesting development is that our model can be used to evaluate the impact of lockdown measures and country-wide risk factors by adding explanatory variables in the fixed and time structured components of relative risk.
 
@@ -1184,7 +1205,7 @@ kable(df1, "latex",
   align = "c",
   digit = 0,
   col.names = c("week", rep(c("Obs. 2020", "Sim. Median"), 2)),
-  caption = "\\label{tab:tab4} Values observed in 2020 and simulations median in excess deaths model"
+  caption = "\\label{tab:tab5} Values observed in 2020 and simulations median in excess deaths model"
 ) %>%
   kable_styling(
     latex_options = c("hold_position", "condensed")
@@ -1197,7 +1218,7 @@ kable(df2, "latex",
   align = "c",
   digit = 0,
   col.names = c("week", rep(c("Obs. 2020", "Sim. Median"), 2)),
-  caption = "\\label{tab:tab5} Values observed in 2020 and simulations median in excess deaths model"
+  caption = "\\label{tab:tab6} Values observed in 2020 and simulations median in excess deaths model"
 ) %>%
   kable_styling(
     latex_options = c("hold_position", "condensed")
@@ -1233,7 +1254,7 @@ kable(df_covid1, "latex",
   align = "c",
   digit = 0,
   col.names = c("week", rep(c("Obs. 2020", "Sim. Median"), 2)),
-  caption = "\\label{tab:tab6} Values observed in 2020 and simulations median in excess deaths on top of the reported COVID-19 deaths model"
+  caption = "\\label{tab:tab7} Values observed in 2020 and simulations median in excess deaths on top of the reported COVID-19 deaths model"
 ) %>%
   kable_styling(
     latex_options = c("hold_position", "condensed")
@@ -1245,7 +1266,7 @@ kable(df_covid2, "latex",
   align = "c",
   digit = 0,
   col.names = c("week", rep(c("Obs. 2020", "Sim. Median"), 2)),
-  caption = "\\label{tab:tab7} Values observed in 2020 and simulations median in excess deaths on top of the reported COVID-19 deaths model"
+  caption = "\\label{tab:tab8} Values observed in 2020 and simulations median in excess deaths on top of the reported COVID-19 deaths model"
 ) %>%
   kable_styling(
     latex_options = c("hold_position", "condensed")
