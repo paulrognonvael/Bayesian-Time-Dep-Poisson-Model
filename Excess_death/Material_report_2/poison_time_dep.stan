@@ -9,8 +9,8 @@ data{
   real alpha_sigma;
   real beta_a;
   real beta_b;
-  real sigma_time_mu;
-  real sigma_time_sigma;
+  real sigma_time_a;
+  real sigma_time_b;
   
 }
 
